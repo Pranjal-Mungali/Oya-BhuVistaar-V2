@@ -1,0 +1,101 @@
+{
+  "project": {
+    "name": "BhuVistaar",
+    "team": "Core Research",
+    "hackathon": "AI Geospatial Initiative",
+    "version": "2.0.0"
+  },
+  "overview": {
+    "psnr_db": "33.52 dB",
+    "psnr_trend": "+12.5%",
+    "ssim": "0.953",
+    "ssim_trend": "+8.2%",
+    "sharpness_gain": "1.18x",
+    "sharpness_trend": "+18.0%",
+    "mean_uncertainty": "0.0067",
+    "uncertainty_trend": "-14.2%"
+  },
+  "chartData": {
+    "3months": [
+      { "date": "2026-06", "baseline": 26.2, "bhuvistaar": 33.1, "uncertainty": 0.0082 },
+      { "date": "2026-07", "baseline": 27.0, "bhuvistaar": 33.8, "uncertainty": 0.0075 },
+      { "date": "2026-08", "baseline": 26.8, "bhuvistaar": 34.2, "uncertainty": 0.0069 },
+      { "date": "2026-09", "baseline": 27.4, "bhuvistaar": 34.9, "uncertainty": 0.0064 }
+    ],
+    "30days": [
+      { "date": "Day 01", "baseline": 26.5, "bhuvistaar": 33.4, "uncertainty": 0.0078 },
+      { "date": "Day 05", "baseline": 26.8, "bhuvistaar": 33.9, "uncertainty": 0.0074 },
+      { "date": "Day 10", "baseline": 27.1, "bhuvistaar": 34.1, "uncertainty": 0.0071 },
+      { "date": "Day 15", "baseline": 27.0, "bhuvistaar": 34.3, "uncertainty": 0.0068 },
+      { "date": "Day 20", "baseline": 27.3, "bhuvistaar": 34.5, "uncertainty": 0.0066 },
+      { "date": "Day 25", "baseline": 27.5, "bhuvistaar": 34.7, "uncertainty": 0.0065 },
+      { "date": "Day 30", "baseline": 27.6, "bhuvistaar": 34.9, "uncertainty": 0.0063 }
+    ],
+    "7days": [
+      { "date": "Mon", "baseline": 26.8, "bhuvistaar": 33.8, "uncertainty": 0.0072 },
+      { "date": "Tue", "baseline": 27.0, "bhuvistaar": 34.1, "uncertainty": 0.0070 },
+      { "date": "Wed", "baseline": 27.2, "bhuvistaar": 34.3, "uncertainty": 0.0068 },
+      { "date": "Thu", "baseline": 27.1, "bhuvistaar": 34.4, "uncertainty": 0.0067 },
+      { "date": "Fri", "baseline": 27.4, "bhuvistaar": 34.6, "uncertainty": 0.0065 },
+      { "date": "Sat", "baseline": 27.5, "bhuvistaar": 34.8, "uncertainty": 0.0064 },
+      { "date": "Sun", "baseline": 27.6, "bhuvistaar": 35.0, "uncertainty": 0.0062 }
+    ]
+  },
+  "datasetTable": [
+    {
+      "id": "SCENE-001",
+      "name": "Sentinel-2 True Color RGB",
+      "sensor": "MSI Level-2A",
+      "bands": "B4, B3, B2",
+      "format": "GeoTIFF (uint16)",
+      "crs": "EPSG:4326",
+      "psnr": "33.52 dB",
+      "ssim": "0.9526",
+      "status": "Ready"
+    },
+    {
+      "id": "SCENE-002",
+      "name": "Sentinel-2 Multispectral RGB+NIR",
+      "sensor": "MSI Level-2A",
+      "bands": "B4, B3, B2, B8",
+      "format": "GeoTIFF (uint16)",
+      "crs": "EPSG:4326",
+      "psnr": "33.38 dB",
+      "ssim": "0.9530",
+      "status": "Ready"
+    },
+    {
+      "id": "SCENE-003",
+      "name": "Urban Optical High-Contrast",
+      "sensor": "Optical Airborne",
+      "bands": "RGB (3-Band)",
+      "format": "PNG (uint8)",
+      "crs": "Local/Relative",
+      "psnr": "33.26 dB",
+      "ssim": "0.9546",
+      "status": "Ready"
+    },
+    {
+      "id": "SCENE-004",
+      "name": "Landsat-8 OLI Surface Reflectance",
+      "sensor": "OLI/TIRS",
+      "bands": "B4, B3, B2, B5",
+      "format": "GeoTIFF (int16)",
+      "crs": "UTM Zone 43N",
+      "psnr": "32.85 dB",
+      "ssim": "0.9412",
+      "status": "Archived"
+    },
+    {
+      "id": "SCENE-005",
+      "name": "PlanetScope SuperDove 8-Band",
+      "sensor": "PSB.SD",
+      "bands": "Visible + RedEdge + NIR",
+      "format": "GeoTIFF (uint16)",
+      "crs": "WGS 84",
+      "psnr": "34.10 dB",
+      "ssim": "0.9610",
+      "status": "Pending"
+    }
+  ]
+}
