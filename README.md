@@ -48,15 +48,17 @@ Traditional single-image interpolation (e.g., bicubic, bilinear) simply blurs pi
 
 The BhuVistaar dashboard is engineered with **Next.js 14**, **Tailwind CSS**, and **shadcn/ui**, providing a refined geospatial dark theme, micro-interactions, and real-time inference telemetry.
 
-![BhuVistaar Dashboard Overview](docs/screenshots/dashboard_full.png)
+![BhuVistaar Dashboard Studio](docs/screenshots/dashboard_full.png)
 
 ### Dashboard Highlights:
-- **Curtain View**: Interactive wiping slider with real-time divider handle comparing 10m low-resolution input against 2.5m super-resolved output. Includes zoom controls ($1\times$, $1.5\times$, $2\times$, $3\times$, $4\times$), pan & drag mode, and viewport reset.
+- **Interactive Curtain View**: Wiping slider with real-time divider handle comparing 10m low-resolution input against 2.5m super-resolved output. Includes zoom controls ($1\times$, $1.5\times$, $2\times$, $3\times$, $4\times$), pan & drag mode, and viewport reset.
 - **Side-by-Side Dual Viewport**: Synchronized comparative inspection across full scene dimensions.
-- **Uncertainty Map (Monte Carlo Epistemic Heatmap)**: Visualizes per-pixel standard deviation across stochastic dropout passes with selectable colormaps (**Turbo** and **Magma**) and calibrated colorbars.
+- **Uncertainty Map (Monte Carlo Epistemic Heatmap)**: Visualizes per-pixel standard deviation across stochastic dropout passes with selectable colormaps (**Turbo**, **Magma**, **Inferno**, **Viridis**) and calibrated colorbars.
 - **Quality Metrics Cards**: Live post-inference telemetry showing Reconstruction Fidelity (PSNR), Structural Similarity (SSIM), Sharpness Gradient Gain ratio, and Epistemic Uncertainty ($\sigma$).
 - **Multispectral Telemetry**: Interactive area chart showing per-band spectral response across Sentinel-2 bands (B2 Blue, B3 Green, B4 Red, B8 NIR).
-- **Scene Catalog & Upload**: One-click benchmark scene presets (Sentinel-2 RGB+NIR 4-Band, True Color 3-Band) and drag-and-drop custom GeoTIFF/image uploader.
+- **Scene Catalog & Upload**: One-click benchmark scene presets (Sentinel-2 RGB+NIR 4-Band, True Color 3-Band, Urban Optical) and drag-and-drop custom GeoTIFF/image uploader.
+
+![Curtain Wipe 4x Resolution Inspection](docs/screenshots/dashboard_overview.png)
 
 ---
 
@@ -68,7 +70,7 @@ The BhuVistaar dashboard is engineered with **Next.js 14**, **Tailwind CSS**, an
 | **Epistemic Uncertainty** | 5–30 Pass Monte Carlo Dropout ($\sigma$) | Flags ambiguous terrain and structural boundaries; prevents hallucination |
 | **Multi-Spectral Bands** | Supports RGB (3-band) & RGB+NIR (4-band) | Native compatibility with Sentinel-2 MSI Level-2A reflectance tiles |
 | **CIR Vegetation Composite** | Automated NIR $\rightarrow$ R, R $\rightarrow$ G, G $\rightarrow$ B composite | Direct vegetation vigor and hydrological boundary analysis |
-| **16-bit GeoTIFF I/O** | Rasterio + Percentile Clipping ($p_1, p_{99}$) | Eliminates high-dynamic-range reflectance clipping issues |
+| **16-bit GeoTIFF I/O** | Rasterio + Percentile Clipping ($p_2, p_{98}$) | Eliminates high-dynamic-range reflectance clipping issues |
 | **Spatial Georeferencing** | $\mathbf{A}_{new} = \mathbf{A}_{old} \times \text{Scale}(0.25, 0.25)$ | 2.5m output snaps directly into GIS software at exact geospatial coordinates |
 | **Hardware Accelerated** | PyTorch CUDA Tensor Core acceleration | Fast GPU inference with automatic graceful CPU fallback |
 
@@ -79,7 +81,9 @@ The BhuVistaar dashboard is engineered with **Next.js 14**, **Tailwind CSS**, an
 ### 1. 4× Super-Resolution Output
 BhuVistaar enhances structural boundaries, urban building perimeters, arterial roads, and agricultural field partitions while retaining radiometric fidelity.
 
-![Side-by-Side Comparison](docs/screenshots/side_by_side_comparison.png)
+| Original 10m Ground Sample (Input 1×) | BhuVistaar 2.5m Super-Resolved (Output 4×) |
+| :---: | :---: |
+| ![Original 10m Sample](docs/screenshots/sample_input_1x.png) | ![4x Super-Resolved 2.5m](docs/screenshots/sample_super_res_4x.png) |
 
 ### 2. Bayesian Epistemic Uncertainty Map ($\sigma$)
 By executing stochastic forward passes under active spatial dropout, BhuVistaar calculates the per-pixel predictive variance, highlighting regions of ambiguity (e.g. shadowed building edges, turbulent water surfaces, and high-frequency textural transitions).
@@ -121,45 +125,82 @@ $$\text{Sharpness} = \text{Var}\left(\nabla^2 I\right) = \frac{1}{N}\sum_{x,y} \
 
 ## 🏗️ System Architecture
 
+BhuVistaar is structured into a clean, decoupled five-tier architecture separating interactive user presentation, high-performance API orchestration, radiometric ingestion, deep neural super-resolution, and GIS georeferencing:
+
 ```text
-[ Input Satellite Scene (.tif / .png / .jpg) ]
-                       │
-                       ▼
-┌────────────────────────────────────────────────────────┐
-│  Geospatial Ingestion & Radiometric Normalization      │
-│  - CRS & Affine Transform Extraction                   │
-│  - Multi-band Demux (RGB vs RGB+NIR)                   │
-│  - Percentile Scaling [p2, p98]                        │
-└──────────────────────────────┬─────────────────────────┘
-                               │ Normalized Tensor [1, C, H, W]
-                               ▼
-┌────────────────────────────────────────────────────────┐
-│  BhuVistaar Real-ESRGAN Generator (23 RRDB Blocks)     │
-│  - Deep Feature Extraction (64 channels)               │
-│  - Spatial Monte Carlo Dropout2d (p = 0.06)            │
-│  - Cascaded 4x Sub-Pixel Upsampling                    │
-└──────────────────────────────┬─────────────────────────┘
-                               │
-              ┌────────────────┴────────────────┐
-              ▼ (T Passes)                      ▼
-┌──────────────────────────────┐ ┌──────────────────────────────┐
-│ Deterministic & Mean Pred    │ │ Epistemic Predictive Variance│
-│ Base SR + 1/T ∑ y^(t)        │ │ Var[y] = 1/T ∑ (y - μ)^2     │
-└──────────────┬───────────────┘ └──────────────┬───────────────┘
-               │                                │
-               ├────────────────────────────────┤
-               ▼                                ▼
-┌──────────────────────────────┐ ┌──────────────────────────────┐
-│ 4x Super-Resolved RGB Image  │ │ Calibrated Uncertainty Map   │
-│ & False-Color CIR Composite  │ │ with Colorbar (Turbo/Magma)  │
-└──────────────┬───────────────┘ └──────────────────────────────┘
-               │
-               ▼
-┌────────────────────────────────────────────────────────┐
-│  GIS GeoTIFF Exporter (2.5m GSD)                       │
-│  - New Affine Matrix: A_old * Scale(0.25, 0.25)        │
-│  - Preserved Coordinate Reference System (EPSG:4326)   │
-└────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────────────────────────────┐
+│                               1. FRONTEND PRESENTATION LAYER                                    │
+│                     Next.js 14 App Router • Tailwind CSS • Radix UI • Lucide                    │
+│                                                                                                 │
+│  ┌───────────────────────┐ ┌───────────────────────┐ ┌────────────────────────────────────────┐  │
+│  │ Interactive Curtain   │ │ Side-by-Side Dual     │ │ Monte Carlo Uncertainty Viewer         │  │
+│  │ Wipe Slider & Zoom    │ │ Comparative View      │ │ Turbo / Magma / Inferno Colormaps      │  │
+│  └───────────────────────┘ └───────────────────────┘ └────────────────────────────────────────┘  │
+│  ┌───────────────────────┐ ┌───────────────────────┐ ┌────────────────────────────────────────┐  │
+│  │ False-Color CIR       │ │ Telemetry Dashboard   │ │ 2.5m GeoTIFF Exporter                  │  │
+│  │ Vegetation Composite  │ │ PSNR, SSIM, Sharpness │ │ Coordinate-Preserved Asset Download    │  │
+│  └───────────────────────┘ └───────────────────────┘ └────────────────────────────────────────┘  │
+└────────────────────────────────────────────────┬────────────────────────────────────────────────┘
+                                                 │ HTTP / REST (Multipart + JSON)
+                                                 ▼
+┌─────────────────────────────────────────────────────────────────────────────────────────────────┐
+│                               2. API & ORCHESTRATION GATEWAY                                    │
+│                           FastAPI • Uvicorn • Pydantic • Async I/O                              │
+│                                                                                                 │
+│    • POST /api/predict          : Orchestrates 4x SR + Monte Carlo Bayesian uncertainty         │
+│    • POST /api/super-resolve    : High-throughput single-click 4x neural reconstruction         │
+│    • GET  /api/samples          : Built-in Sentinel-2 L2A & Cartosat benchmark catalog          │
+│    • GET  /api/download/{file}  : Geospatial GeoTIFF & High-DPI PNG streaming provider          │
+└────────────────────────────────────────────────┬────────────────────────────────────────────────┘
+                                                 │
+                                                 ▼
+┌─────────────────────────────────────────────────────────────────────────────────────────────────┐
+│                    3. RADIOMETRIC INGESTION & GEOSPATIAL NORMALIZATION                          │
+│                            Rasterio • GDAL • NumPy • OpenCV                                     │
+│                                                                                                 │
+│    • 16-bit GeoTIFF Ingestion    : Read raw digital numbers (DN) & top-of-atmosphere radiance   │
+│    • Multispectral Demux         : Split & route 3-Band (RGB) vs 4-Band (RGB + NIR Band 8)      │
+│    • Radiometric Normalization   : Percentile stretching [p2, p98] -> Float32 [0.0, 1.0]        │
+│    • Metadata & CRS Extraction   : Parse Affine Geotransform, EPSG Coordinate System            │
+└────────────────────────────────────────────────┬────────────────────────────────────────────────┘
+                                                 │ Normalized Tensor [1, C, H, W]
+                                                 ▼
+┌─────────────────────────────────────────────────────────────────────────────────────────────────┐
+│                       4. DEEP SUPER-RESOLUTION & UNCERTAINTY CORE                               │
+│                         PyTorch 2.x • Real-ESRGAN RRDBNet • CUDA 12                             │
+│                                                                                                 │
+│    ┌───────────────────────────────────────────────────────────────────────────────────────┐    │
+│    │ Real-ESRGAN Generator (23 Residual-in-Residual Dense Blocks - RRDB)                   │    │
+│    │ - Shallow Feature Extraction: Conv2D(C_in=4, C_feat=64, 3x3)                          │    │
+│    │ - Deep Residual Trunk: 23 RRDB Blocks with Dense LeakyReLU Interconnections           │    │
+│    │ - Spatial Monte Carlo Dropout2d (p = 0.06 active at test-time)                        │    │
+│    │ - Cascaded 4x Sub-Pixel Convolutional Upsampling (PixelShuffle)                       │    │
+│    └───────────────────────────────────────────┬───────────────────────────────────────────┘    │
+│                                                │                                                │
+│                     ┌──────────────────────────┴──────────────────────────┐                     │
+│                     │ Stochastic Forward Passes (T = 5 to 30)             │                     │
+│                     ▼                                                     ▼                     │
+│         ┌───────────────────────┐                             ┌───────────────────────┐         │
+│         │ Predictive Mean       │                             │ Epistemic Variance    │         │
+│         │ y_hat = 1/T ∑ y^(t)   │                             │ σ^2 = 1/T ∑ (y - μ)^2 │         │
+│         └───────────┬───────────┘                             └───────────┬───────────┘         │
+└─────────────────────┼─────────────────────────────────────────────────────┼─────────────────────┘
+                      │                                                     │
+                      ▼                                                     ▼
+┌──────────────────────────────────────────────────┐  ┌───────────────────────────────────────────┐
+│ 4x Enhanced RGB & False-Color CIR Composite      │  │ Calibrated Epistemic Uncertainty Heatmap  │
+│ 10m GSD -> 2.5m GSD Sub-Pixel Detail             │  │ Matplotlib Turbo Palette + Quantified σ   │
+└─────────────────────┬────────────────────────────┘  └───────────────────────────────────────────┘
+                      │
+                      ▼
+┌─────────────────────────────────────────────────────────────────────────────────────────────────┐
+│                          5. GIS GEOREFERENCING & SPATIAL EXPORT                                 │
+│                                                                                                 │
+│    • Affine Matrix Scaling : A_new = A_old * Scale(0.25, 0.25)                                  │
+│    • Resolution Rescale    : (H, W) -> (4H, 4W) preserving exact geographic extent              │
+│    • Coordinate Tracking   : Preserves EPSG:4326 / UTM Projection tags                          │
+│    • Seamless Compatibility: Direct drag-and-drop into QGIS, ArcGIS Pro, Google Earth Engine    │
+└─────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
