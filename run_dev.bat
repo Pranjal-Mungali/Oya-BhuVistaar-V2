@@ -1,14 +1,18 @@
 @echo off
+title BhuVistaar V2 - Full-Stack Monorepo
 echo ===================================================
 echo   Starting BhuVistaar: AI Super Resolution System
 echo ===================================================
 echo.
-echo Starting FastAPI Backend on http://127.0.0.1:8000 ...
-start "BhuVistaar Backend" cmd /k "python server.py"
-
-echo Starting Next.js shadcn/ui Dashboard on http://localhost:3000 ...
-start "BhuVistaar Frontend" cmd /k "cd frontend && npm run dev"
-
+echo Running unified single command: npm run dev
+echo (FastAPI on http://127.0.0.1:8000 + Next.js on http://localhost:3000)
 echo.
-echo Both servers launched!
-echo Open your browser at: http://localhost:3000
+
+where npm >nul 2>nul
+if %ERRORLEVEL% equ 0 (
+    npm run dev
+) else (
+    echo npm not found in PATH, falling back to python dev.py...
+    python dev.py
+)
+pause

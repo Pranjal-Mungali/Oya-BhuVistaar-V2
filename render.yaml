@@ -1,0 +1,28 @@
+services:
+  - type: web
+    name: bhuvistaar-v2
+    runtime: docker
+    plan: starter
+    region: oregon
+    branch: main
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /api/health
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      - key: HOST
+        value: 0.0.0.0
+      - key: DEVICE
+        value: cpu
+      - key: DATA_CACHE_DIR
+        value: data/cache
+      - key: MODEL_CHECKPOINT_PATH
+        value: weights/RealESRGAN_x4plus.pth
+      - key: COPERNICUS_CLIENT_ID
+        sync: false
+      - key: COPERNICUS_CLIENT_SECRET
+        sync: false
+      - key: BHOONIDHI_USERNAME
+        sync: false
+      - key: BHOONIDHI_PASSWORD
+        sync: false

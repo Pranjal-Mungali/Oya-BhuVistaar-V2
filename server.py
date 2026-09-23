@@ -298,6 +298,52 @@ def download_asset(filename: str):
     return FileResponse(file_path, media_type=media_type, filename=filename)
 
 
+# ------------------------------------------------------------------------------
+# Frontend Static Files Serving (Production / Render Deployments)
+# ------------------------------------------------------------------------------
+from starlette.staticfiles import StaticFiles
+
+FRONTEND_OUT_DIR = os.path.join(BASE_DIR, "frontend", "out")
+if os.path.exists(FRONTEND_OUT_DIR):
+    _next_static = os.path.join(FRONTEND_OUT_DIR, "_next")
+    if os.path.exists(_next_static):
+        app.mount("/_next", StaticFiles(directory=_next_static), name="next-static")
+
+    @app.get("/{full_path:path}", include_in_schema=False)
+    async def serve_spa_frontend(full_path: str):
+        # Do not catch /api or OpenAPI docs endpoints
+        if full_path.startswith("api") or full_path in ("docs", "redoc", "openapi.json"):
+            raise HTTPException(status_code=404, detail="Not Found")
+
+        # 1. Exact static asset match (e.g. logo.png, favicon.ico)
+        target = os.path.join(FRONTEND_OUT_DIR, full_path)
+        if full_path and os.path.isfile(target):
+            return FileResponse(target)
+
+        # 2. Page route with .html extension (e.g. /dashboard -> /dashboard.html)
+        html_target = os.path.join(FRONTEND_OUT_DIR, f"{full_path}.html")
+        if full_path and os.path.isfile(html_target):
+            return FileResponse(html_target)
+
+        # 3. Default to index.html for root or SPA navigation
+        index_target = os.path.join(FRONTEND_OUT_DIR, "index.html")
+        if os.path.isfile(index_target):
+            return FileResponse(index_target)
+
+        raise HTTPException(status_code=404, detail="Frontend file not found")
+else:
+    @app.get("/", include_in_schema=False)
+    def root_dev_fallback():
+        return {
+            "project": "BhuVistaar",
+            "version": "2.0.0",
+            "status": "online",
+            "message": "FastAPI backend running. Next.js frontend dev server is at http://localhost:3000.",
+            "docs": "/docs",
+            "health": "/api/health"
+        }
+
+
 if __name__ == "__main__":
     import uvicorn
     print(f"[BhuVistaar API] Launching on http://{settings.HOST}:{settings.PORT} (env: {settings.ENVIRONMENT}, reload: {settings.DEBUG})")

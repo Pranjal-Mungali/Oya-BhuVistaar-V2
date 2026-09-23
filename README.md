@@ -168,41 +168,42 @@ BhuVistaar/
 - **Node.js**: `18.x` or higher
 - **NVIDIA GPU** *(Optional)*: CUDA 11.8+ for hardware acceleration (CPU fallback included)
 
-### 2. One-Click Launch (Windows)
-```cmd
+### 2. Single-Command Launch (Backend + Frontend Concurrently)
+
+You can launch both the FastAPI backend and Next.js frontend concurrently with a **single command**:
+
+```bash
+# Option A: Standard Monorepo NPM Command (Cross-platform)
+npm run dev
+
+# Option B: Pure Python Unified Runner (Cross-platform)
+python dev.py
+
+# Option C: Windows One-Click Batch Launcher
 run_dev.bat
 ```
-This starts both the FastAPI server (`http://127.0.0.1:8000`) and the Next.js frontend (`http://localhost:3000`).
+
+- **Frontend Dashboard**: [`http://localhost:3000`](http://localhost:3000)
+- **FastAPI Backend**: [`http://127.0.0.1:8000`](http://127.0.0.1:8000)
+- **Interactive Swagger Docs**: [`http://127.0.0.1:8000/docs`](http://127.0.0.1:8000/docs)
 
 ---
 
-### 3. Manual Launch
+### 3. Deploying to Render (Cloud Deployment)
 
-#### Step 1: Start Backend (FastAPI)
-```bash
-# Clone the repository
-git clone https://github.com/Pranjal-Mungali/Oya-BhuVistaar-V2.git
-cd Oya-BhuVistaar-V2
+BhuVistaar V2 features a **multi-stage production Dockerfile** that builds the Next.js frontend into static assets and serves both the API and the interactive UI from FastAPI on a single dynamic `$PORT`.
 
-# Create virtual environment
-python -m venv venv
-# Windows: venv\Scripts\activate | Linux/macOS: source venv/bin/activate
+#### Option A: 1-Click Render Blueprint (Recommended)
+1. Push your repository to GitHub.
+2. In [Render Dashboard](https://dashboard.render.com/), click **New +** -> **Blueprint**.
+3. Select this repository. Render automatically reads [`render.yaml`](file:///d:/BhuVistaar%20V2/render.yaml) and configures the web service.
+4. Click **Apply** to deploy!
 
-# Install dependencies
-pip install -r requirements.txt
-
-# Start backend server
-python server.py
-```
-Backend runs at `http://127.0.0.1:8000` (Swagger docs: `http://127.0.0.1:8000/docs`).
-
-#### Step 2: Start Frontend (Next.js 14)
-```bash
-cd frontend
-npm install
-npm run dev
-```
-Open **`http://localhost:3000`** in your browser.
+#### Option B: Manual Web Service Setup
+1. Click **New +** -> **Web Service** -> **Deploy existing image or repository**.
+2. Select your repository.
+3. Choose **Docker** as the Environment.
+4. Render will build the multi-stage Docker container and automatically expose the service on `$PORT`.
 
 ---
 

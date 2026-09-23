@@ -1,0 +1,32 @@
+# Version control
+.git
+.gitignore
+
+# Environment variables & local secrets
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.venv/
+venv/
+env/
+
+# Node & Next.js
+frontend/node_modules/
+node_modules/
+frontend/.next/
+frontend/out/
+
+# Build artifacts & temporary data
+data/cache/*
+!data/cache/.gitkeep
+build/
+dist/
+*.log
