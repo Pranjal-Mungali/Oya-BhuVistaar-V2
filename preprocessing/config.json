@@ -1,0 +1,42 @@
+{
+  "bands": {
+    "red": "B04",
+    "green": "B03",
+    "blue": "B02",
+    "nir": "B08"
+  },
+  "band_indices": {
+    "B04": 0,
+    "B03": 1,
+    "B02": 2,
+    "B08": 3
+  },
+  "radiometric_normalization": {
+    "sentinel2_scale": 10000.0,
+    "cartosat_bit_depth": 10,
+    "cartosat_max_value": 1023.0,
+    "clip_min": 0.0,
+    "clip_max": 1.0,
+    "percentile_stretch": {
+      "p_low": 2.0,
+      "p_high": 98.0
+    }
+  },
+  "spatial_resolution": {
+    "sentinel2_gsd_meters": 10.0,
+    "super_resolution_factor": 4,
+    "target_gsd_meters": 2.5,
+    "cartosat_gsd_meters": 2.5
+  },
+  "tiling": {
+    "tile_size": 128,
+    "overlap": 32,
+    "blend_mode": "hann"
+  },
+  "nodata_values": {
+    "sentinel2": 0,
+    "cartosat": 0,
+    "output": 0
+  },
+  "crs_default": "EPSG:4326"
+}

@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { TrendingUp, TrendingDown, Clock, Activity, ShieldCheck, Zap, Sparkles } from "lucide-react";
 
 export interface CardData {
@@ -40,7 +40,7 @@ export function SectionCards({ cards }: SectionCardsProps) {
       trend: "Standby",
       trendType: "neutral",
       trendText: "Awaiting image inference",
-      subText: "High-frequency Laplacian variance gain",
+      subText: "High-frequency Laplacian variance ratio",
     },
     {
       title: "Epistemic Uncertainty (σ)",
@@ -54,78 +54,155 @@ export function SectionCards({ cards }: SectionCardsProps) {
 
   const displayCards = cards && cards.length > 0 ? cards : initialStandbyCards;
 
-  const cardIcons = [
-    <Zap className="w-4 h-4 text-[#4fe0cd]" key="zap" />,
-    <Sparkles className="w-4 h-4 text-[#60a5fa]" key="sparkles" />,
-    <Activity className="w-4 h-4 text-[#f59e0b]" key="activity" />,
-    <ShieldCheck className="w-4 h-4 text-[#ec4899]" key="shield" />,
+  const cardThemes = [
+    {
+      accent: "#10b981", // Muted emerald green
+      topAccent: "bg-emerald-500/60",
+      iconBg: "bg-emerald-500/10 border-emerald-500/20 text-emerald-400",
+      borderHover: "hover:border-emerald-500/30",
+      unitColor: "text-emerald-400",
+      badgeActive: "border-emerald-500/25 bg-emerald-500/10 text-emerald-300",
+      icon: <Zap className="w-4 h-4" />,
+    },
+    {
+      accent: "#38bdf8", // Soft sky blue
+      topAccent: "bg-sky-500/60",
+      iconBg: "bg-sky-500/10 border-sky-500/20 text-sky-400",
+      borderHover: "hover:border-sky-500/30",
+      unitColor: "text-sky-400",
+      badgeActive: "border-sky-500/25 bg-sky-500/10 text-sky-300",
+      icon: <Sparkles className="w-4 h-4" />,
+    },
+    {
+      accent: "#f59e0b", // Muted warm amber/orange
+      topAccent: "bg-amber-500/60",
+      iconBg: "bg-amber-500/10 border-amber-500/20 text-amber-400",
+      borderHover: "hover:border-amber-500/30",
+      unitColor: "text-amber-400",
+      badgeActive: "border-amber-500/25 bg-amber-500/10 text-amber-300",
+      icon: <Activity className="w-4 h-4" />,
+    },
+    {
+      accent: "#a855f7", // Soft purple/violet
+      topAccent: "bg-purple-500/60",
+      iconBg: "bg-purple-500/10 border-purple-500/20 text-purple-400",
+      borderHover: "hover:border-purple-500/30",
+      unitColor: "text-purple-400",
+      badgeActive: "border-purple-500/25 bg-purple-500/10 text-purple-300",
+      icon: <ShieldCheck className="w-4 h-4" />,
+    },
   ];
+
+  // Formatter with smooth value transitions
+  const formatValue = (val: string, unitColor: string) => {
+    if (val === "--") {
+      return (
+        <span className="text-3xl md:text-4xl font-bold tracking-tight font-mono text-slate-600 select-none">
+          --
+        </span>
+      );
+    }
+
+    // Check for dB unit
+    if (val.endsWith("dB")) {
+      const num = val.replace("dB", "").trim();
+      return (
+        <div key={val} className="flex items-baseline">
+          <span className="text-3xl md:text-4xl font-bold tracking-tight font-mono text-white">
+            {num}
+          </span>
+          <span className={`ml-2 text-lg md:text-xl font-semibold font-mono ${unitColor}`}>
+            dB
+          </span>
+        </div>
+      );
+    }
+
+    // Check for multiplier (e.g. 1.66x)
+    if (val.endsWith("x")) {
+      const num = val.slice(0, -1).trim();
+      return (
+        <div key={val} className="flex items-baseline">
+          <span className="text-3xl md:text-4xl font-bold tracking-tight font-mono text-white">
+            {num}
+          </span>
+          <span className={`ml-1.5 text-lg md:text-xl font-semibold font-mono ${unitColor}`}>
+            x
+          </span>
+        </div>
+      );
+    }
+
+    // Raw float number (e.g. 0.9860 or 0.00343)
+    return (
+      <span key={val} className="text-3xl md:text-4xl font-bold tracking-tight font-mono text-white inline-block">
+        {val}
+      </span>
+    );
+  };
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-5">
       {displayCards.map((card, idx) => {
         const isStandby = card.value === "--";
+        const theme = cardThemes[idx % cardThemes.length];
 
         return (
           <div
             key={idx}
-            className="group relative overflow-hidden bg-[#121622] border border-[#232c3f] rounded-3xl p-5 md:p-6 flex flex-col justify-between hover:border-[#3a4763] transition-all duration-300 shadow-[0_10px_30px_rgba(0,0,0,0.4)]"
+            className={`relative overflow-hidden bg-[#0e1626]/70 backdrop-blur-md border border-white/[0.08] rounded-2xl p-5 md:p-6 flex flex-col justify-between transition-all duration-200 shadow-[0_8px_25px_rgba(0,0,0,0.3)] hover:shadow-[0_12px_32px_rgba(0,0,0,0.45)] hover:bg-[#121c30]/85 hover:border-white/[0.16] cursor-default ${theme.borderHover}`}
           >
-            {/* Subtle Tonal Corner Glow */}
-            <div className="absolute -top-12 -right-12 w-28 h-28 bg-[#4fe0cd]/5 group-hover:bg-[#4fe0cd]/10 rounded-full blur-2xl transition-all duration-500 pointer-events-none" />
+            {/* Top Subtle Accent Strip */}
+            <div className={`absolute top-0 left-6 right-6 h-[2px] rounded-full ${theme.topAccent}`} />
 
             {/* Card Header & Trend Pill Badge */}
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
-                <div className="w-7 h-7 rounded-full bg-[#1b2333] border border-[#29354e] flex items-center justify-center">
-                  {cardIcons[idx % cardIcons.length]}
+            <div className="relative z-10 flex items-center justify-between gap-3 pt-1">
+              <div className="flex items-center gap-2.5">
+                <div
+                  className={`w-7 h-7 rounded-lg border flex items-center justify-center ${theme.iconBg}`}
+                >
+                  {theme.icon}
                 </div>
-                <span className="text-xs font-bold uppercase tracking-wider text-[#94a3b8]">
-                  {card.title.split("(")[0]}
+                <span className="text-xs font-semibold text-slate-300">
+                  {card.title.split("(")[0].trim()}
                 </span>
               </div>
 
               <div
-                className={`flex items-center gap-1.5 text-[11px] font-bold px-3 py-1 rounded-full border transition-all ${
-                  card.trendType === "up"
-                    ? "border-[#4fe0cd]/40 bg-[#162725] text-[#4fe0cd] shadow-[0_0_10px_rgba(79,224,205,0.2)]"
-                    : card.trendType === "down"
-                    ? "border-[#60a5fa]/40 bg-[#182337] text-[#93c5fd]"
-                    : "border-[#252f44] bg-[#161b26] text-[#64748b]"
+                className={`flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-0.5 rounded-full border transition-colors ${
+                  isStandby
+                    ? "border-slate-800 bg-slate-900/60 text-slate-500"
+                    : theme.badgeActive
                 }`}
               >
-                {card.trendType === "up" ? (
-                  <TrendingUp className="w-3 h-3 text-[#4fe0cd]" />
-                ) : card.trendType === "down" ? (
-                  <TrendingDown className="w-3 h-3 text-[#60a5fa]" />
+                {!isStandby && card.trendType === "up" ? (
+                  <TrendingUp className="w-3 h-3" />
+                ) : !isStandby && card.trendType === "down" ? (
+                  <TrendingDown className="w-3 h-3" />
                 ) : (
-                  <Clock className="w-3 h-3 text-[#64748b]" />
+                  <Clock className="w-3 h-3 opacity-60" />
                 )}
                 <span>{card.trend}</span>
               </div>
             </div>
 
-            {/* Big Value Metric */}
-            <div className="my-4">
-              <div
-                className={`text-3xl md:text-4xl font-extrabold tracking-tight font-mono ${
-                  isStandby ? "text-[#3f4a61]" : "text-white"
-                }`}
-              >
-                {card.value}
-              </div>
+            {/* Prominent Metric Display */}
+            <div className="relative z-10 my-4 md:my-5">
+              {formatValue(card.value, theme.unitColor)}
             </div>
 
-            {/* Footer Details */}
-            <div className="pt-3 border-t border-[#1d2536] space-y-1">
+            {/* Footer with Clear Visual Hierarchy */}
+            <div className="relative z-10 pt-3 border-t border-white/[0.06] space-y-0.5">
               <div
-                className={`flex items-center gap-1.5 text-xs font-semibold ${
-                  isStandby ? "text-[#64748b]" : "text-[#e2e8f0]"
+                className={`text-xs font-medium ${
+                  isStandby ? "text-slate-500" : "text-slate-200"
                 }`}
               >
                 <span>{card.trendText}</span>
               </div>
-              <p className="text-[11px] text-[#64748b] leading-tight">{card.subText}</p>
+              <p className="text-[11px] text-slate-500 leading-snug">
+                {card.subText}
+              </p>
             </div>
           </div>
         );
