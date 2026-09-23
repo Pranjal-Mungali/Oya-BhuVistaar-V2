@@ -160,6 +160,9 @@ async def predict_satellite(
 ):
     """Executes 4x super-resolution and Monte Carlo Dropout epistemic uncertainty quantification."""
     effective_passes = num_passes if (num_passes is not None and num_passes > 0) else settings.DEFAULT_MC_PASSES
+    # On CPU instances (e.g. Render Free Tier), cap passes to 5 to prevent OOM kills & 502 gateway timeouts
+    if model_manager.device.type == "cpu":
+        effective_passes = min(effective_passes, 5)
     effective_colormap = colormap if colormap else settings.DEFAULT_COLORMAP
     start_time = time.time()
     temp_input_path = None

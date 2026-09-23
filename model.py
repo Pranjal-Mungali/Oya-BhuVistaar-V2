@@ -178,24 +178,35 @@ def mc_dropout_inference(
     with torch.no_grad():
         base_sr = model(input_tensor).clamp(0.0, 1.0)
 
-    # 2. Monte Carlo Dropout passes for Epistemic Uncertainty Mapping
+    # 2. Monte Carlo Dropout passes for Epistemic Uncertainty Mapping (Online Accumulation)
     enable_mc_dropout(model)
 
-    predictions = []
+    sum_pred = None
+    sum_pred_sq = None
+
     with torch.no_grad():
         for _ in range(num_passes):
             pred = model(input_tensor).clamp(0.0, 1.0)
-            predictions.append(pred)
+            if sum_pred is None:
+                sum_pred = pred.clone()
+                sum_pred_sq = pred.pow(2)
+            else:
+                sum_pred.add_(pred)
+                sum_pred_sq.add_(pred.pow(2))
+            del pred
 
-    stacked = torch.stack(predictions, dim=0)
-    channel_variance = torch.var(stacked, dim=0)
+    mean_ensemble = sum_pred / num_passes
+    channel_variance = torch.clamp((sum_pred_sq / num_passes) - mean_ensemble.pow(2), min=0.0)
+    del sum_pred, sum_pred_sq
     uncertainty_map = torch.mean(channel_variance, dim=1, keepdim=True).sqrt()
 
     # Blend deterministic base with ensemble mean for peak sharpness & consistency
-    mean_sr = 0.7 * base_sr + 0.3 * torch.mean(stacked, dim=0)
+    mean_sr = 0.7 * base_sr + 0.3 * mean_ensemble
     mean_sr = torch.clamp(mean_sr, 0.0, 1.0)
 
     model.eval()
+    import gc
+    gc.collect()
     return mean_sr, uncertainty_map
 
 

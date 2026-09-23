@@ -119,6 +119,22 @@ def load_satellite_image(
     normalized_list = [normalize_band(b) for b in raw_bands]
     normalized_data = np.stack(normalized_list, axis=0)
 
+    # Dimensional safety cap for production cloud servers (max 512x512 input -> 2048x2048 4x output)
+    max_dim = 512
+    _, h, w = normalized_data.shape
+    if max(h, w) > max_dim:
+        scale_ratio = max_dim / float(max(h, w))
+        new_w = max(16, int(round(w * scale_ratio)))
+        new_h = max(16, int(round(h * scale_ratio)))
+        resized_bands = [
+            cv2.resize(band, (new_w, new_h), interpolation=cv2.INTER_AREA)
+            for band in normalized_data
+        ]
+        normalized_data = np.stack(resized_bands, axis=0)
+        metadata["width"] = new_w
+        metadata["height"] = new_h
+        metadata["downscaled_for_memory"] = True
+
     # Generate 8-bit preview RGB
     if num_channels == 1:
         mono = (normalized_data[0] * 255.0).astype(np.uint8)
