@@ -19,6 +19,7 @@ import cv2
 import numpy as np
 from PIL import Image
 
+from config import settings
 from model import BhuVistaarModelManager
 from utils import (
     load_satellite_image,
@@ -38,13 +39,15 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=settings.CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-model_manager = BhuVistaarModelManager()
+model_manager = BhuVistaarModelManager(
+    weights_path=str(settings.MODEL_CHECKPOINT_PATH)
+)
 
 @app.on_event("startup")
 def startup_warmup():
@@ -54,9 +57,9 @@ def startup_warmup():
     except Exception as e:
         print(f"[BhuVistaar API] Warmup notice: {e}")
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-SAMPLES_DIR = os.path.join(BASE_DIR, "samples")
-TEMP_OUTPUT_DIR = os.path.join(tempfile.gettempdir(), "bhuvistaar_outputs")
+BASE_DIR = str(settings.BASE_DIR)
+SAMPLES_DIR = str(settings.SAMPLES_DIR)
+TEMP_OUTPUT_DIR = str(settings.TEMP_OUTPUT_DIR)
 os.makedirs(TEMP_OUTPUT_DIR, exist_ok=True)
 
 
@@ -80,8 +83,43 @@ def health_check():
         "status": "online",
         "project": "BhuVistaar",
         "version": "2.0.0",
+        "environment": settings.ENVIRONMENT,
+        "model": "Real-ESRGAN MC Dropout (4x)",
+        "checkpoint": os.path.basename(str(settings.MODEL_CHECKPOINT_PATH)),
         "device": str(model_manager.device),
-        "cuda_available": str(model_manager.device) != "cpu"
+        "cuda_available": str(model_manager.device) != "cpu",
+        "scale_factor": settings.SCALE_FACTOR,
+        "default_mc_passes": settings.DEFAULT_MC_PASSES,
+        "default_colormap": settings.DEFAULT_COLORMAP
+    }
+
+
+@app.get("/api/config")
+def get_active_config():
+    """Returns sanitized dynamic system configuration."""
+    return {"status": "ok", "config": settings.to_dict(mask_secrets=True)}
+
+
+@app.get("/api/sample")
+def get_sample_info():
+    """Returns sample scene metadata for compatibility & acceptance tests."""
+    sample_path = os.path.join(SAMPLES_DIR, "satellite_sample.png")
+    if os.path.exists(sample_path):
+        with Image.open(sample_path) as im:
+            w, h = im.size
+        return {
+            "name": "Satellite Sample Scene",
+            "filename": "satellite_sample.png",
+            "width": w,
+            "height": h,
+            "resolution": f"{w}x{h} px"
+        }
+    return {
+        "name": "Sentinel-2 Sample",
+        "filename": "sample_sentinel2_rgb_nir.tif",
+        "width": 128,
+        "height": 128,
+        "resolution": "128x128 px"
     }
 
 
@@ -117,10 +155,13 @@ def get_samples():
 async def predict_satellite(
     file: Optional[UploadFile] = File(None),
     sample_id: Optional[str] = Form(None),
-    num_passes: int = Form(15),
-    colormap: str = Form("turbo")
+    num_passes: Optional[int] = Form(None),
+    colormap: Optional[str] = Form(None)
 ):
     """Executes 4x super-resolution and Monte Carlo Dropout epistemic uncertainty quantification."""
+    effective_passes = num_passes if (num_passes is not None and num_passes > 0) else settings.DEFAULT_MC_PASSES
+    effective_colormap = colormap if colormap else settings.DEFAULT_COLORMAP
+    start_time = time.time()
     temp_input_path = None
     orig_name = "scene"
 
@@ -137,16 +178,18 @@ async def predict_satellite(
                 "sentinel2_nir": "sample_sentinel2_rgb_nir.tif",
                 "sentinel2_rgb": "sample_sentinel2_rgb.tif",
                 "cartosat_urban": "sample_cartosat_urban.tif",
-                "urban_optical": "sample_urban_lr.png"
+                "urban_optical": "sample_urban_lr.png",
+                "satellite_sample": "satellite_sample.png"
             }
             if sample_id not in sample_map:
                 raise HTTPException(status_code=400, detail=f"Unknown sample_id: {sample_id}")
             temp_input_path = os.path.join(SAMPLES_DIR, sample_map[sample_id])
             orig_name = sample_map[sample_id]
         else:
-            # Default to bundled Sentinel-2 NIR sample
-            temp_input_path = os.path.join(SAMPLES_DIR, "sample_sentinel2_rgb_nir.tif")
-            orig_name = "sample_sentinel2_rgb_nir.tif"
+            # Default to bundled test sample: prefer satellite_sample.png if present, else sentinel2
+            default_sample = "satellite_sample.png" if os.path.exists(os.path.join(SAMPLES_DIR, "satellite_sample.png")) else "sample_sentinel2_rgb_nir.tif"
+            temp_input_path = os.path.join(SAMPLES_DIR, default_sample)
+            orig_name = default_sample
 
         if not os.path.exists(temp_input_path):
             raise HTTPException(status_code=404, detail="Target satellite image not found")
@@ -157,12 +200,12 @@ async def predict_satellite(
 
         # Monte Carlo Dropout Inference (stochastic passes)
         tensor = image_to_tensor(normalized_data, device=model_manager.device)
-        sr_tensor, unc_tensor = model_manager.super_resolve(tensor, num_passes=num_passes)
+        sr_tensor, unc_tensor = model_manager.super_resolve(tensor, num_passes=effective_passes)
 
         # Compositing & Uncertainty Heatmap Generation
         sr_rgb, sr_cir = tensor_to_images(sr_tensor)
         side_by_side = create_side_by_side_banner(lr_preview, sr_rgb)
-        uncertainty_heatmap, unc_stats = generate_uncertainty_heatmap(unc_tensor, colormap_name=colormap)
+        uncertainty_heatmap, unc_stats = generate_uncertainty_heatmap(unc_tensor, colormap_name=effective_colormap)
 
         # Quantitative Metrics & Multispectral Analysis
         metrics = calculate_metrics(
@@ -186,8 +229,16 @@ async def predict_satellite(
         unc_base64 = numpy_to_base64_png(uncertainty_heatmap)
         cir_base64 = numpy_to_base64_png(sr_cir) if sr_cir is not None else None
 
+        elapsed_sec = round(time.time() - start_time, 2)
+
         return {
             "success": True,
+            "scale": settings.SCALE_FACTOR,
+            "input_width": int(normalized_data.shape[2]),
+            "input_height": int(normalized_data.shape[1]),
+            "output_width": int(sr_rgb.shape[1]),
+            "output_height": int(sr_rgb.shape[0]),
+            "processing_time_sec": elapsed_sec,
             "images": {
                 "low_res": lr_base64,
                 "super_res": sr_base64,
@@ -232,8 +283,8 @@ async def predict_satellite(
 async def super_resolution_alias(
     file: Optional[UploadFile] = File(None),
     sample_id: Optional[str] = Form(None),
-    num_passes: int = Form(15),
-    colormap: str = Form("turbo")
+    num_passes: Optional[int] = Form(None),
+    colormap: Optional[str] = Form(None)
 ):
     return await predict_satellite(file=file, sample_id=sample_id, num_passes=num_passes, colormap=colormap)
 
@@ -249,4 +300,5 @@ def download_asset(filename: str):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="127.0.0.1", port=8000)
+    print(f"[BhuVistaar API] Launching on http://{settings.HOST}:{settings.PORT} (env: {settings.ENVIRONMENT}, reload: {settings.DEBUG})")
+    uvicorn.run("server:app", host=settings.HOST, port=settings.PORT, reload=settings.DEBUG)

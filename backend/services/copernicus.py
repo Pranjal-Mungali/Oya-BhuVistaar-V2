@@ -10,11 +10,18 @@ import logging
 from typing import Dict, Any, List, Optional
 import requests
 
+try:
+    from config import settings
+except ImportError:
+    import sys
+    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+    from config import settings
+
 logger = logging.getLogger("bhuvistaar.copernicus")
 
-COPERNICUS_AUTH_URL = "https://identity.dataspace.copernicus.eu/auth/realms/CDSE/protocol/openid-connect/token"
-COPERNICUS_STAC_URL = "https://stac.dataspace.copernicus.eu/v1/search"
-CACHE_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data", "cache", "sentinel2")
+COPERNICUS_AUTH_URL = settings.COPERNICUS_AUTH_URL
+COPERNICUS_STAC_URL = settings.COPERNICUS_STAC_URL
+CACHE_DIR = str(settings.DATA_CACHE_DIR / "sentinel2")
 
 # Token cache
 _token_cache = {
@@ -23,21 +30,8 @@ _token_cache = {
 }
 
 def load_env_credentials():
-    """Load credentials from environment variables or .env file."""
-    client_id = os.getenv("COPERNICUS_CLIENT_ID", "")
-    client_secret = os.getenv("COPERNICUS_CLIENT_SECRET", "")
-    if not client_id or not client_secret:
-        # Check .env in project root
-        env_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), ".env")
-        if os.path.exists(env_path):
-            with open(env_path, "r", encoding="utf-8") as f:
-                for line in f:
-                    line = line.strip()
-                    if line.startswith("COPERNICUS_CLIENT_ID="):
-                        client_id = line.split("=", 1)[1].strip().strip('"').strip("'")
-                    elif line.startswith("COPERNICUS_CLIENT_SECRET="):
-                        client_secret = line.split("=", 1)[1].strip().strip('"').strip("'")
-    return client_id, client_secret
+    """Load credentials dynamically from configuration."""
+    return settings.COPERNICUS_CLIENT_ID, settings.COPERNICUS_CLIENT_SECRET
 
 def get_copernicus_token() -> Optional[str]:
     """Retrieve and cache OAuth2 access token for Copernicus Data Space."""

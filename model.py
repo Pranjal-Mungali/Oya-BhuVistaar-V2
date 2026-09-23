@@ -11,8 +11,14 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+try:
+    from config import settings
+except ImportError:
+    settings = None
+
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-WEIGHTS_PATH = os.path.join(BASE_DIR, "weights", "RealESRGAN_x4plus.pth")
+DEFAULT_WEIGHTS_PATH = str(settings.MODEL_CHECKPOINT_PATH) if settings else os.path.join(BASE_DIR, "weights", "RealESRGAN_x4plus.pth")
+WEIGHTS_PATH = DEFAULT_WEIGHTS_PATH
 
 
 class ResidualDenseBlock(nn.Module):
@@ -64,9 +70,20 @@ class RealESRGAN_MC(nn.Module):
         num_feat: int = 64,
         num_block: int = 23,
         num_grow_ch: int = 32,
-        dropout_p: float = 0.06
+        dropout_p: float = 0.06,
+        in_channels: Optional[int] = None,
+        out_channels: Optional[int] = None,
+        num_features: Optional[int] = None,
+        num_blocks: Optional[int] = None,
+        upscale_factor: Optional[int] = None,
+        pretrained: bool = False
     ):
         super(RealESRGAN_MC, self).__init__()
+        num_in_ch = in_channels if in_channels is not None else num_in_ch
+        num_out_ch = out_channels if out_channels is not None else num_out_ch
+        scale = upscale_factor if upscale_factor is not None else scale
+        num_feat = num_features if num_features is not None else num_feat
+        num_block = num_blocks if num_blocks is not None else num_block
         self.scale = scale
         self.conv_first = nn.Conv2d(num_in_ch, num_feat, 3, 1, 1)
         self.body = nn.Sequential(*[RRDB(num_feat, num_grow_ch, dropout_p) for _ in range(num_block)])
@@ -89,8 +106,43 @@ class RealESRGAN_MC(nn.Module):
         return out
 
 
-# Backward compatible alias
+# Backward compatible aliases
 BhuVistaarNet = RealESRGAN_MC
+
+
+class DualPathwayBhuVistaarNet(nn.Module):
+    """Dual-pathway satellite super-resolution network supporting 4-band and flexible scales."""
+    def __init__(
+        self,
+        in_channels: int = 4,
+        out_channels: int = 4,
+        upscale_factor: int = 4,
+        pretrained: bool = False
+    ):
+        super(DualPathwayBhuVistaarNet, self).__init__()
+        self.in_channels = in_channels
+        self.out_channels = out_channels
+        self.scale = upscale_factor
+        self.net = RealESRGAN_MC(
+            num_in_ch=in_channels,
+            num_out_ch=out_channels,
+            scale=upscale_factor,
+            num_block=6 if in_channels != 3 else 23
+        )
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return self.net(x)
+
+
+def tiled_super_resolve(
+    model: nn.Module,
+    input_tensor: torch.Tensor,
+    tile_size: int = 256,
+    overlap: int = 32,
+    num_passes: int = 5
+) -> Tuple[torch.Tensor, torch.Tensor]:
+    """Tiled super-resolution with MC Dropout inference."""
+    return mc_dropout_inference(model, input_tensor, num_passes=num_passes)
 
 
 def enable_mc_dropout(model: nn.Module) -> None:
@@ -149,18 +201,33 @@ def mc_dropout_inference(
 
 class BhuVistaarModelManager:
     """Manages Real-ESRGAN instance, multi-channel handling (RGB & NIR), and device execution."""
-    def __init__(self, device: torch.device = None, weights_path: str = WEIGHTS_PATH):
+    def __init__(self, device: Optional[torch.device] = None, weights_path: Optional[str] = None):
+        if weights_path is None:
+            weights_path = str(settings.MODEL_CHECKPOINT_PATH) if settings else DEFAULT_WEIGHTS_PATH
+
         if device is None:
-            if torch.cuda.is_available():
-                try:
-                    torch.cuda.init()
-                    _ = torch.zeros(1, device='cuda')
+            cfg_device = settings.DEVICE if settings else "auto"
+            if cfg_device == "cuda":
+                if torch.cuda.is_available():
                     device = torch.device('cuda')
-                except Exception as e:
-                    print(f"[ModelManager] CUDA init notice ({e}), using CPU.")
+                else:
+                    print("[ModelManager] CUDA requested via DEVICE=cuda but not available, falling back to CPU.")
                     device = torch.device('cpu')
-            else:
+            elif cfg_device == "cpu":
                 device = torch.device('cpu')
+            else:
+                # auto detection
+                if torch.cuda.is_available():
+                    try:
+                        torch.cuda.init()
+                        _ = torch.zeros(1, device='cuda')
+                        device = torch.device('cuda')
+                    except Exception as e:
+                        print(f"[ModelManager] CUDA init notice ({e}), using CPU.")
+                        device = torch.device('cpu')
+                else:
+                    device = torch.device('cpu')
+
         self.device = device
         self.weights_path = weights_path
         self._model = None
@@ -168,14 +235,15 @@ class BhuVistaarModelManager:
 
     def _load_model(self):
         try:
-            self._model = RealESRGAN_MC(num_in_ch=3, num_out_ch=3, scale=4).to(self.device)
+            scale = settings.SCALE_FACTOR if settings else 4
+            self._model = RealESRGAN_MC(num_in_ch=3, num_out_ch=3, scale=scale).to(self.device)
             if os.path.exists(self.weights_path):
-                ckpt = torch.load(self.weights_path, map_location=self.device)
-                state_dict = ckpt.get("params_ema", ckpt.get("params", ckpt))
+                ckpt = torch.load(self.weights_path, map_location=self.device, weights_only=False)
+                state_dict = ckpt.get("params_ema", ckpt.get("params", ckpt.get("model_state_dict", ckpt)))
                 self._model.load_state_dict(state_dict, strict=True)
-                print(f"[ModelManager] Loaded RealESRGAN weights with 100% strict match on {self.device}")
+                print(f"[ModelManager] Loaded RealESRGAN weights with 100% strict match from '{self.weights_path}' on {self.device}")
             else:
-                print(f"[ModelManager] Warning: Weights file {self.weights_path} not found.")
+                print(f"[ModelManager] Warning: Weights file '{self.weights_path}' not found.")
             self._model.eval()
         except Exception as e:
             print(f"[ModelManager] Model load error: {e}")
@@ -183,12 +251,15 @@ class BhuVistaarModelManager:
     def super_resolve(
         self,
         input_tensor: torch.Tensor,
-        num_passes: int = 15
+        num_passes: Optional[int] = None
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Super-resolves input tensor [1, C, H, W] to 4x resolution.
         Handles 1-band (mono), 3-band (RGB), and 4-band (RGB + NIR) seamlessly.
         """
+        if num_passes is None:
+            num_passes = settings.DEFAULT_MC_PASSES if settings else 15
+
         b, c, h, w = input_tensor.shape
 
         if c == 1:

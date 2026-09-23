@@ -9,26 +9,21 @@ import logging
 from typing import Dict, Any, List, Optional
 import requests
 
+try:
+    from config import settings
+except ImportError:
+    import sys
+    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+    from config import settings
+
 logger = logging.getLogger("bhuvistaar.bhoonidhi")
 
-BHOONIDHI_API_URL = "https://bhoonidhi.nrsc.gov.in/bhoonidhi-api/stac/search"
-CACHE_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data", "cache", "cartosat")
+BHOONIDHI_API_URL = settings.BHOONIDHI_API_URL
+CACHE_DIR = str(settings.DATA_CACHE_DIR / "cartosat")
 
 def load_bhoonidhi_credentials():
-    """Load credentials from environment variables or .env file."""
-    username = os.getenv("BHOONIDHI_USERNAME", "")
-    password = os.getenv("BHOONIDHI_PASSWORD", "")
-    if not username or not password:
-        env_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), ".env")
-        if os.path.exists(env_path):
-            with open(env_path, "r", encoding="utf-8") as f:
-                for line in f:
-                    line = line.strip()
-                    if line.startswith("BHOONIDHI_USERNAME="):
-                        username = line.split("=", 1)[1].strip().strip('"').strip("'")
-                    elif line.startswith("BHOONIDHI_PASSWORD="):
-                        password = line.split("=", 1)[1].strip().strip('"').strip("'")
-    return username, password
+    """Load credentials dynamically from configuration."""
+    return settings.BHOONIDHI_USERNAME, settings.BHOONIDHI_PASSWORD
 
 def search_cartosat_reference(
     bbox: List[float],
