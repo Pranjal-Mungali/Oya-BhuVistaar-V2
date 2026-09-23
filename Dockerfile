@@ -53,6 +53,14 @@ COPY models/ ./models/
 COPY samples/ ./samples/
 COPY preprocessing/ ./preprocessing/
 
+# Download pretrained RealESRGAN weights if not present in git checkout
+RUN mkdir -p weights && \
+    if [ ! -s weights/RealESRGAN_x4plus.pth ]; then \
+        echo "Downloading RealESRGAN_x4plus.pth backbone weights..." && \
+        curl -L -f -o weights/RealESRGAN_x4plus.pth \
+        https://github.com/xinntao/Real-ESRGAN/releases/download/v0.1.0/RealESRGAN_x4plus.pth ; \
+    fi
+
 # Copy built frontend static export from Stage 1
 COPY --from=frontend-builder /app/frontend/out ./frontend/out
 

@@ -237,6 +237,14 @@ class BhuVistaarModelManager:
         try:
             scale = settings.SCALE_FACTOR if settings else 4
             self._model = RealESRGAN_MC(num_in_ch=3, num_out_ch=3, scale=scale).to(self.device)
+            if not os.path.exists(self.weights_path) and "RealESRGAN_x4plus.pth" in str(self.weights_path):
+                print(f"[ModelManager] Weights file '{self.weights_path}' not found locally. Auto-downloading Real-ESRGAN backbone...")
+                os.makedirs(os.path.dirname(os.path.abspath(self.weights_path)), exist_ok=True)
+                import urllib.request
+                url = "https://github.com/xinntao/Real-ESRGAN/releases/download/v0.1.0/RealESRGAN_x4plus.pth"
+                urllib.request.urlretrieve(url, self.weights_path)
+                print(f"[ModelManager] Downloaded RealESRGAN weights successfully.")
+
             if os.path.exists(self.weights_path):
                 ckpt = torch.load(self.weights_path, map_location=self.device, weights_only=False)
                 state_dict = ckpt.get("params_ema", ckpt.get("params", ckpt.get("model_state_dict", ckpt)))
