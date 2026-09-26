@@ -28,7 +28,7 @@
 
 ---
 
-## 📌 Overview
+## Overview
 
 **BhuVistaar** is an AI-powered super-resolution platform designed for Earth observation satellites (such as ESA Sentinel-2). It enhances **10m low-resolution multispectral imagery to 2.5m ground sampling distance (GSD)** while calculating Bayesian epistemic uncertainty to prevent hallucinations and flag ambiguous terrain boundaries.
 
@@ -56,37 +56,7 @@
   - Cosine Annealing learning rate scheduling and data augmentation.
   - Multi-metric validation (PSNR & SSIM tracking) with automatic best-checkpoint saving.
 
----
-
-## 🖥️ Dashboard Preview
-
-![BhuVistaar Dashboard Studio](docs/screenshots/dashboard_full.png)
-
-### Interactive Curtain Wipe (10m vs 2.5m GSD):
-![Curtain Wipe 4x Resolution Inspection](docs/screenshots/dashboard_overview.png)
-
----
-
 ## 🔬 Visual Results
-
-### 1. 4× Super-Resolution Comparison (10m &rarr; 2.5m)
-BhuVistaar resolves individual buildings, roads, and land boundaries with preserved radiometry:
-
-| Original 10m Ground Sample (1× Input) | BhuVistaar 2.5m Super-Resolved (4× Output) |
-| :---: | :---: |
-| ![Original 10m Sample](docs/screenshots/sample_input_1x.png) | ![4x Super-Resolved 2.5m](docs/screenshots/sample_super_res_4x.png) |
-
-### 2. Bayesian Epistemic Uncertainty Heatmap ($\sigma$)
-Quantifies prediction variance across 15 stochastic dropout passes to highlight ambiguous textures and shadow edges:
-
-![Epistemic Uncertainty Heatmap](docs/screenshots/epistemic_uncertainty_map.png)
-
-### 3. False-Color Infrared (CIR: NIR + Red + Green)
-Generates high-contrast vegetation composites for agricultural canopy and water boundary delineation:
-
-![False Color NIR Composite](docs/screenshots/false_color_nir.png)
-
----
 
 ## 🏗️ System Architecture
 
