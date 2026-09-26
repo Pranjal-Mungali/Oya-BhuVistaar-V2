@@ -1,7 +1,3 @@
-# ==============================================================================
-# BhuVistaar V2 - Production Python Dependencies
-# ==============================================================================
-
 # Deep Learning Core & Neural Inference
 torch>=2.0.0
 torchvision>=0.15.0
