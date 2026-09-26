@@ -35,62 +35,74 @@
   body {
     @apply bg-background text-foreground;
     font-feature-settings: "rlig" 1, "calt" 1;
-    background-color: #0b0f17;
-    background-image: 
-      radial-gradient(ellipse 90% 40% at 50% -15%, rgba(20, 184, 166, 0.05), transparent 70%),
-      radial-gradient(ellipse 60% 30% at 85% 20%, rgba(56, 189, 248, 0.03), transparent 60%);
-    background-attachment: fixed;
-    color: #f1f5f9;
+    background-color: #09090b;
+    color: #f4f4f5;
   }
 }
 
 @layer utilities {
-  /* Subtle, professional glassmorphism tokens (10-14px soft blur, light transparency, subtle white border) */
+  /* Subtle, restrained glassmorphism tokens for dark theme */
   .glass-panel {
-    background-color: rgba(15, 22, 35, 0.78);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    box-shadow: 0 10px 32px -4px rgba(0, 0, 0, 0.35);
-  }
-  
-  .glass-card {
-    background-color: rgba(14, 20, 32, 0.72);
+    background-color: rgba(18, 18, 21, 0.85);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
     border: 1px solid rgba(255, 255, 255, 0.07);
-    box-shadow: 0 6px 24px -2px rgba(0, 0, 0, 0.28);
+    box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.4);
   }
-
-  .glass-subcard {
-    background-color: rgba(10, 15, 24, 0.65);
+  
+  .glass-card {
+    background-color: rgba(18, 18, 21, 0.75);
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
     border: 1px solid rgba(255, 255, 255, 0.06);
+    box-shadow: 0 4px 16px -2px rgba(0, 0, 0, 0.35);
+  }
+
+  .glass-subcard {
+    background-color: rgba(13, 13, 15, 0.7);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.05);
   }
 
   .glass-hover {
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   }
   .glass-hover:hover {
-    background-color: rgba(18, 26, 42, 0.85);
-    border-color: rgba(255, 255, 255, 0.14);
-    box-shadow: 0 12px 36px -6px rgba(0, 0, 0, 0.45);
+    background-color: rgba(24, 24, 28, 0.9);
+    border-color: rgba(255, 255, 255, 0.12);
+    box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.5);
   }
 }
 
-/* Custom refined scrollbar for dark dashboard */
+/* Refined micro-interactions and transitions */
+@keyframes fadeInSubtle {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-tab-fade {
+  animation: fadeInSubtle 0.18s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Custom refined scrollbar for dark theme */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: #0b0f17;
+  background: #09090b;
 }
 ::-webkit-scrollbar-thumb {
-  background: #1e293b;
-  border-radius: 4px;
+  background: #27272a;
+  border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #334155;
+  background: #3f3f46;
 }

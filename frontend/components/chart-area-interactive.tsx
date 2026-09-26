@@ -23,9 +23,9 @@ export function ChartAreaInteractive({
   hasInference = false,
   liveMetrics,
   metadata,
-  spectralBands
+  spectralBands,
 }: ChartAreaInteractiveProps) {
-  const [sensorPreset, setSensorPreset] = useState<"active" | "sentinel" | "landsat">("active");
+  const [sensorPreset, setSensorPreset] = useState<"active" | "sentinel">("active");
 
   const rawSpectralData = spectralBands || liveMetrics?.spectral_bands;
   const is4Band = (metadata?.bands_count ?? (rawSpectralData?.length || 0)) >= 4 || metadata?.has_nir;
@@ -43,43 +43,43 @@ export function ChartAreaInteractive({
     : sentinelFallback;
 
   return (
-    <div className="bg-[#0e1524]/75 backdrop-blur-md border border-white/[0.08] rounded-2xl p-6 shadow-[0_8px_30px_rgba(0,0,0,0.3)]">
+    <div className="bg-[#121215] border border-zinc-800 rounded-2xl p-6 shadow-[0_4px_24px_rgba(0,0,0,0.4)]">
       {/* Chart Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-white/[0.06]">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-zinc-800">
         <div>
           <div className="flex items-center gap-2.5">
-            <h2 className="text-base font-bold text-slate-100">
+            <h2 className="text-base font-semibold text-zinc-100">
               Reconstruction Fidelity Across Multispectral Bands (PSNR)
             </h2>
             {hasInference && (
-              <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-teal-500/10 text-teal-300 font-mono font-semibold border border-teal-500/20">
+              <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-teal-500/10 text-teal-300 font-mono font-medium border border-teal-500/20">
                 {is4Band ? "4-Band (RGB+NIR)" : "3-Band (RGB)"}
               </span>
             )}
           </div>
-          <p className="text-xs text-slate-400 mt-0.5">
+          <p className="text-xs text-zinc-400 mt-0.5">
             Spectral channel enhancement curve (BhuVistaar vs Bicubic baseline)
           </p>
         </div>
 
         {hasInference && (
-          <div className="inline-flex items-center p-1 rounded-xl bg-[#070b13]/85 backdrop-blur-sm border border-white/[0.07]">
+          <div className="inline-flex items-center p-1 rounded-xl bg-[#0d0d0f] border border-zinc-800">
             <button
               onClick={() => setSensorPreset("active")}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-150 ease-out active:scale-[0.98] cursor-pointer ${
                 sensorPreset === "active"
-                  ? "bg-[#182130] text-teal-300 border border-teal-500/30 shadow-sm font-semibold"
-                  : "text-slate-400 hover:text-slate-200"
+                  ? "bg-[#18181c] text-teal-300 border border-zinc-700 shadow-sm font-semibold"
+                  : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/40"
               }`}
             >
               Active Scene Telemetry
             </button>
             <button
               onClick={() => setSensorPreset("sentinel")}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-150 ease-out active:scale-[0.98] cursor-pointer ${
                 sensorPreset === "sentinel"
-                  ? "bg-[#182130] text-slate-200 shadow font-semibold"
-                  : "text-slate-400 hover:text-slate-200"
+                  ? "bg-[#18181c] text-zinc-200 border border-zinc-700 shadow font-semibold"
+                  : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/40"
               }`}
             >
               Sentinel-2 MSI Reference
@@ -90,10 +90,10 @@ export function ChartAreaInteractive({
 
       {/* Chart Canvas or Standby State */}
       {!hasInference ? (
-        <div className="h-[220px] flex flex-col items-center justify-center text-center p-6 border border-dashed border-white/[0.08] rounded-xl mt-4 bg-[#080d16]/60 backdrop-blur-sm">
-          <Activity className="w-7 h-7 text-slate-600 mb-2" />
-          <div className="text-sm font-medium text-slate-300">Telemetry Awaiting Active Scene Run</div>
-          <div className="text-xs text-slate-500 mt-1 max-w-sm">
+        <div className="h-[220px] flex flex-col items-center justify-center text-center p-6 border border-dashed border-zinc-800 rounded-xl mt-4 bg-[#0d0d0f]">
+          <Activity className="w-6 h-6 text-zinc-600 mb-2" />
+          <div className="text-sm font-medium text-zinc-300">Telemetry Awaiting Active Scene Run</div>
+          <div className="text-xs text-zinc-500 mt-1 max-w-sm">
             Process a satellite scene in the studio above to calculate and plot multispectral band PSNR fidelity curves.
           </div>
         </div>
@@ -103,25 +103,25 @@ export function ChartAreaInteractive({
             <AreaChart data={activeData} margin={{ top: 10, right: 20, left: -10, bottom: 0 }}>
               <defs>
                 <linearGradient id="colorSr" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#2dd4bf" stopOpacity={0.25} />
-                  <stop offset="95%" stopColor="#2dd4bf" stopOpacity={0.0} />
+                  <stop offset="5%" stopColor="#14b8a6" stopOpacity={0.25} />
+                  <stop offset="95%" stopColor="#14b8a6" stopOpacity={0.0} />
                 </linearGradient>
                 <linearGradient id="colorBaseline" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#64748b" stopOpacity={0.15} />
-                  <stop offset="95%" stopColor="#64748b" stopOpacity={0.0} />
+                  <stop offset="5%" stopColor="#71717a" stopOpacity={0.15} />
+                  <stop offset="95%" stopColor="#71717a" stopOpacity={0.0} />
                 </linearGradient>
               </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="#1e2738" vertical={false} />
+              <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
               <XAxis
                 dataKey="band"
-                stroke="#64748b"
+                stroke="#71717a"
                 fontSize={11}
                 tickLine={false}
-                axisLine={{ stroke: "#1e2738" }}
+                axisLine={{ stroke: "#27272a" }}
               />
               <YAxis
                 domain={[(dataMin: number) => Math.max(0, Math.floor(dataMin - 3)), (dataMax: number) => Math.ceil(dataMax + 3)]}
-                stroke="#64748b"
+                stroke="#71717a"
                 fontSize={11}
                 tickLine={false}
                 axisLine={false}
@@ -129,18 +129,18 @@ export function ChartAreaInteractive({
               />
               <Tooltip
                 contentStyle={{
-                  backgroundColor: "#0e131d",
-                  borderColor: "#1e2738",
-                  borderRadius: "10px",
-                  color: "#f1f5f9",
+                  backgroundColor: "#121215",
+                  borderColor: "#27272a",
+                  borderRadius: "8px",
+                  color: "#f4f4f5",
                   fontSize: "12px",
                 }}
-                itemStyle={{ color: "#f1f5f9" }}
+                itemStyle={{ color: "#f4f4f5" }}
               />
               <Area
                 type="monotone"
                 dataKey="bhuvistaar"
-                stroke="#2dd4bf"
+                stroke="#14b8a6"
                 strokeWidth={2}
                 fillOpacity={1}
                 fill="url(#colorSr)"
@@ -149,7 +149,7 @@ export function ChartAreaInteractive({
               <Area
                 type="monotone"
                 dataKey="baseline"
-                stroke="#64748b"
+                stroke="#71717a"
                 strokeWidth={2}
                 strokeDasharray="4 4"
                 fillOpacity={1}
