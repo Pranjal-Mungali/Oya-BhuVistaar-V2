@@ -119,8 +119,14 @@ def load_satellite_image(
     normalized_list = [normalize_band(b) for b in raw_bands]
     normalized_data = np.stack(normalized_list, axis=0)
 
-    # Dimensional safety cap for production cloud servers (max 512x512 input -> 2048x2048 4x output)
-    max_dim = 512
+    # Dimensional safety cap for production cloud servers (e.g. 256x256 input -> 1024x1024 4x output)
+    # Prevents OOM kills & 502 Bad Gateway on free/limited tier hosting (RAM < 512MB).
+    env_dim = os.environ.get("MAX_INPUT_DIM")
+    if env_dim and env_dim.isdigit():
+        max_dim = int(env_dim)
+    else:
+        max_dim = 256 if not (torch.cuda.is_available() and os.environ.get("DEVICE") != "cpu") else 512
+
     _, h, w = normalized_data.shape
     if max(h, w) > max_dim:
         scale_ratio = max_dim / float(max(h, w))

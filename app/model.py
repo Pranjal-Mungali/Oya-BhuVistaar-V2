@@ -11,12 +11,17 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+import sys
+
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if BASE_DIR not in sys.path:
+    sys.path.insert(0, BASE_DIR)
+
 try:
     from config import settings
 except ImportError:
     settings = None
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DEFAULT_WEIGHTS_PATH = str(settings.MODEL_CHECKPOINT_PATH) if settings else os.path.join(BASE_DIR, "weights", "RealESRGAN_x4plus.pth")
 WEIGHTS_PATH = DEFAULT_WEIGHTS_PATH
 
@@ -153,15 +158,17 @@ def enable_mc_dropout(model: nn.Module) -> None:
             m.train()
 
 
+@torch.no_grad()
 def mc_dropout_inference(
     model: nn.Module,
     input_tensor: torch.Tensor,
-    num_passes: int = 15,
+    num_passes: int = 5,
     device: torch.device = None
 ) -> Tuple[torch.Tensor, torch.Tensor]:
     """
     Runs deterministic inference for the razor-sharp super-resolved output,
     and Monte Carlo Dropout sampling across stochastic passes for epistemic uncertainty.
+    Fully wrapped in torch.no_grad() with proactive memory reclamation.
     """
     if device is None:
         device = next(model.parameters()).device
@@ -175,8 +182,7 @@ def mc_dropout_inference(
         if isinstance(m, (nn.Dropout, nn.Dropout2d)):
             m.eval()
 
-    with torch.no_grad():
-        base_sr = model(input_tensor).clamp(0.0, 1.0)
+    base_sr = model(input_tensor).clamp(0.0, 1.0)
 
     # 2. Monte Carlo Dropout passes for Epistemic Uncertainty Mapping (Online Accumulation)
     enable_mc_dropout(model)
@@ -184,16 +190,15 @@ def mc_dropout_inference(
     sum_pred = None
     sum_pred_sq = None
 
-    with torch.no_grad():
-        for _ in range(num_passes):
-            pred = model(input_tensor).clamp(0.0, 1.0)
-            if sum_pred is None:
-                sum_pred = pred.clone()
-                sum_pred_sq = pred.pow(2)
-            else:
-                sum_pred.add_(pred)
-                sum_pred_sq.add_(pred.pow(2))
-            del pred
+    for _ in range(num_passes):
+        pred = model(input_tensor).clamp(0.0, 1.0)
+        if sum_pred is None:
+            sum_pred = pred.clone()
+            sum_pred_sq = pred.pow(2)
+        else:
+            sum_pred.add_(pred)
+            sum_pred_sq.add_(pred.pow(2))
+        del pred
 
     mean_ensemble = sum_pred / num_passes
     channel_variance = torch.clamp((sum_pred_sq / num_passes) - mean_ensemble.pow(2), min=0.0)
@@ -207,6 +212,8 @@ def mc_dropout_inference(
     model.eval()
     import gc
     gc.collect()
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
     return mean_sr, uncertainty_map
 
 
@@ -267,17 +274,18 @@ class BhuVistaarModelManager:
         except Exception as e:
             print(f"[ModelManager] Model load error: {e}")
 
+    @torch.no_grad()
     def super_resolve(
         self,
         input_tensor: torch.Tensor,
         num_passes: Optional[int] = None
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         """
-        Super-resolves input tensor [1, C, H, W] to 4x resolution.
+        Super-resolves input tensor [1, C, H, W] to 4x resolution without storing autograd graphs.
         Handles 1-band (mono), 3-band (RGB), and 4-band (RGB + NIR) seamlessly.
         """
         if num_passes is None:
-            num_passes = settings.DEFAULT_MC_PASSES if settings else 15
+            num_passes = settings.DEFAULT_MC_PASSES if settings else 5
 
         b, c, h, w = input_tensor.shape
 

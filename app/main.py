@@ -17,19 +17,40 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, Response, JSONResponse
 import cv2
 import numpy as np
+import torch
+import gc
 from PIL import Image
 
+import sys
+
+# Ensure repository root is in sys.path
+REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if REPO_ROOT not in sys.path:
+    sys.path.insert(0, REPO_ROOT)
+
 from config import settings
-from model import BhuVistaarModelManager
-from utils import (
-    load_satellite_image,
-    image_to_tensor,
-    tensor_to_images,
-    generate_uncertainty_heatmap,
-    calculate_metrics,
-    create_side_by_side_banner,
-    save_geotiff
-)
+try:
+    from app.model import BhuVistaarModelManager
+    from app.utils import (
+        load_satellite_image,
+        image_to_tensor,
+        tensor_to_images,
+        generate_uncertainty_heatmap,
+        calculate_metrics,
+        create_side_by_side_banner,
+        save_geotiff
+    )
+except ImportError:
+    from model import BhuVistaarModelManager
+    from utils import (
+        load_satellite_image,
+        image_to_tensor,
+        tensor_to_images,
+        generate_uncertainty_heatmap,
+        calculate_metrics,
+        create_side_by_side_banner,
+        save_geotiff
+    )
 
 app = FastAPI(
     title="BhuVistaar API",
@@ -159,24 +180,34 @@ async def predict_satellite(
     colormap: Optional[str] = Form(None)
 ):
     """Executes 4x super-resolution and Monte Carlo Dropout epistemic uncertainty quantification."""
-    effective_passes = num_passes if (num_passes is not None and num_passes > 0) else settings.DEFAULT_MC_PASSES
+    # Sanitize FastAPI Form/File parameter types
+    clean_passes = None
+    if isinstance(num_passes, int) and num_passes > 0:
+        clean_passes = num_passes
+    elif isinstance(num_passes, str) and num_passes.isdigit():
+        clean_passes = int(num_passes)
+    effective_passes = clean_passes if clean_passes is not None else settings.DEFAULT_MC_PASSES
+
     # On CPU instances (e.g. Render Free Tier), cap passes to 5 to prevent OOM kills & 502 gateway timeouts
     if model_manager.device.type == "cpu":
         effective_passes = min(effective_passes, 5)
-    effective_colormap = colormap if colormap else settings.DEFAULT_COLORMAP
+
+    effective_colormap = colormap if (isinstance(colormap, str) and colormap.strip()) else settings.DEFAULT_COLORMAP
+    clean_sample_id = sample_id if (isinstance(sample_id, str) and sample_id.strip()) else None
+
     start_time = time.time()
     temp_input_path = None
     orig_name = "scene"
 
     try:
-        if file is not None and file.filename:
+        if file is not None and getattr(file, "filename", None):
             orig_name = file.filename
             file_ext = os.path.splitext(file.filename)[1]
             temp_input_path = os.path.join(TEMP_OUTPUT_DIR, f"upload_{uuid.uuid4().hex[:8]}{file_ext}")
             contents = await file.read()
             with open(temp_input_path, "wb") as f:
                 f.write(contents)
-        elif sample_id:
+        elif clean_sample_id:
             sample_map = {
                 "sentinel2_nir": "sample_sentinel2_rgb_nir.tif",
                 "sentinel2_rgb": "sample_sentinel2_rgb.tif",
@@ -201,9 +232,10 @@ async def predict_satellite(
         normalized_data, metadata, lr_preview = load_satellite_image(temp_input_path)
         metadata["file_name"] = orig_name
 
-        # Monte Carlo Dropout Inference (stochastic passes)
-        tensor = image_to_tensor(normalized_data, device=model_manager.device)
-        sr_tensor, unc_tensor = model_manager.super_resolve(tensor, num_passes=effective_passes)
+        # Monte Carlo Dropout Inference with torch.no_grad()
+        with torch.no_grad():
+            tensor = image_to_tensor(normalized_data, device=model_manager.device)
+            sr_tensor, unc_tensor = model_manager.super_resolve(tensor, num_passes=effective_passes)
 
         # Compositing & Uncertainty Heatmap Generation
         sr_rgb, sr_cir = tensor_to_images(sr_tensor)
@@ -279,6 +311,23 @@ async def predict_satellite(
         import traceback
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Processing failed: {str(e)}")
+    finally:
+        # Guarantee memory reclamation runs after every inference
+        for v in ("tensor", "sr_tensor", "unc_tensor", "normalized_data"):
+            if v in locals():
+                try:
+                    del locals()[v]
+                except Exception:
+                    pass
+        gc.collect()
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+        # Clean up temporary uploaded file from disk
+        if temp_input_path and "upload_" in temp_input_path and os.path.exists(temp_input_path):
+            try:
+                os.remove(temp_input_path)
+            except Exception:
+                pass
 
 
 # Endpoint alias for compatibility
@@ -350,4 +399,4 @@ else:
 if __name__ == "__main__":
     import uvicorn
     print(f"[BhuVistaar API] Launching on http://{settings.HOST}:{settings.PORT} (env: {settings.ENVIRONMENT}, reload: {settings.DEBUG})")
-    uvicorn.run("server:app", host=settings.HOST, port=settings.PORT, reload=settings.DEBUG)
+    uvicorn.run("app.main:app", host=settings.HOST, port=settings.PORT, reload=settings.DEBUG)

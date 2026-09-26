@@ -3,26 +3,32 @@ End-to-End Pipeline Verification for BhuVistaar 4x Super-Resolution
 """
 
 import os
+import sys
 import torch
 import numpy as np
+
+# Ensure project root is in sys.path
+REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if REPO_ROOT not in sys.path:
+    sys.path.insert(0, REPO_ROOT)
 
 def run_tests():
     print("=== BHUVISTAAR PIPELINE TEST SUITE ===")
 
     # 1. Test STAC client
-    from backend.services.copernicus import search_sentinel2_scenes
+    from app.services.copernicus import search_sentinel2_scenes
     scenes = search_sentinel2_scenes([77.1, 28.5, 77.3, 28.7])
     assert len(scenes) > 0, "Sentinel-2 search returned empty list"
     print(f"[PASS] Sentinel-2 STAC Search: {len(scenes)} scenes found (Top: {scenes[0]['id'][:30]}...)")
 
     # 2. Test Bhoonidhi client
-    from backend.services.bhoonidhi import search_cartosat_reference
+    from app.services.bhoonidhi import search_cartosat_reference
     refs = search_cartosat_reference([77.1, 28.5, 77.3, 28.7])
     assert len(refs) > 0, "Bhoonidhi search returned empty list"
     print(f"[PASS] Bhoonidhi STAC Search: {len(refs)} references found (Status: {refs[0]['status']})")
 
     # 3. Test Dual-Pathway Model Architecture
-    from model import DualPathwayBhuVistaarNet, mc_dropout_inference, tiled_super_resolve
+    from app.model import DualPathwayBhuVistaarNet, mc_dropout_inference, tiled_super_resolve
     model = DualPathwayBhuVistaarNet(in_channels=4, out_channels=4, upscale_factor=4, pretrained=False)
     model.eval()
 
@@ -39,7 +45,7 @@ def run_tests():
     print(f"[PASS] MC Dropout Inference: Mean {sr_mean.shape}, Epistemic Uncertainty {unc_map.shape}")
 
     # 5. Test Metrics (SAM, ERGAS, PSNR, SSIM)
-    from utils import compute_spectral_angle_mapper, compute_ergas, calculate_metrics
+    from app.utils import compute_spectral_angle_mapper, compute_ergas, calculate_metrics
     ref_patch = np.random.rand(4, 128, 128).astype(np.float32)
     pred_patch = np.clip(ref_patch + 0.05 * np.random.randn(4, 128, 128), 0.0, 1.0).astype(np.float32)
     sam = compute_spectral_angle_mapper(ref_patch, pred_patch)
@@ -47,8 +53,8 @@ def run_tests():
     print(f"[PASS] Metrics Computation: SAM={sam:.2f} deg, ERGAS={ergas:.2f}")
 
     # 6. Test GeoTIFF Exporter
-    from utils import save_geotiff, save_multiband_geotiff
-    out_dir = os.path.join(os.path.dirname(__file__), "samples")
+    from app.utils import save_geotiff, save_multiband_geotiff
+    out_dir = os.path.join(REPO_ROOT, "samples")
     test_rgb_out = os.path.join(out_dir, "test_output_rgb.tif")
     test_mb_out = os.path.join(out_dir, "test_output_multiband.tif")
     save_geotiff(test_rgb_out, sr_mean)

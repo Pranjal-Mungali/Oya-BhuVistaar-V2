@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="logo.png" alt="BhuVistaar Logo" width="160" />
+<img src="assets/logo.png" alt="BhuVistaar Logo" width="160" />
 
 # 🛰️ BhuVistaar V2
 ### AI-Powered Satellite 4× Super-Resolution & Bayesian Epistemic Uncertainty Mapping
@@ -138,25 +138,37 @@ Generates high-contrast vegetation composites for agricultural canopy and water 
 
 ```text
 BhuVistaar/
-├── frontend/                       # Next.js 14 + Tailwind CSS + shadcn/ui Dashboard
-│   ├── app/dashboard/page.tsx      # Main dashboard view
-│   ├── components/
-│   │   ├── satellite-studio.tsx    # Interactive Studio (Curtain, Side-by-Side, Uncertainty)
-│   │   ├── section-cards.tsx       # Live quality KPI cards (PSNR, SSIM, Sharpness, σ)
-│   │   └── chart-area-interactive.tsx # Multispectral band fidelity chart
-│   └── public/sample/              # Bundled sample satellite imagery
-├── server.py                       # FastAPI high-performance backend API
-├── model.py                        # 4x RRDBNet with Monte Carlo Dropout engine
-├── utils.py                        # GeoTIFF I/O, uncertainty heatmap, metrics, affine scaling
-├── train.py                        # PyTorch training pipeline (L1 + VGG Perceptual loss)
-├── create_samples.py               # Synthetic & sample satellite tile generator
-├── run_dev.bat                     # Windows one-click launcher for frontend & backend
-├── requirements.txt                # Python backend dependencies
-├── Dockerfile                      # Production container configuration
-├── weights/                        # Pretrained weights (RealESRGAN_x4plus.pth)
-├── models/                         # Trained checkpoints (bhuvistaar_sr_x4_best.pth)
+├── app/                            # Core Application Package
+│   ├── main.py                     # FastAPI production server & API routing
+│   ├── model.py                    # 4x RRDBNet architecture & MC Dropout engine
+│   ├── utils.py                    # GeoTIFF I/O, radiometric normalization, heatmaps
+│   ├── inference.py                # Standalone programmatic & CLI inference pipeline
+│   └── services/                   # STAC providers (Copernicus, Bhoonidhi)
+├── training/                       # Deep Learning Training Pipeline
+│   ├── train.py                    # Model training loop & validation orchestration
+│   ├── dataset.py                  # SatelliteCropDataset & data augmentations
+│   └── losses.py                   # L1, VGG-19 perceptual, Sobel edge, & SSIM/PSNR
+├── frontend/                       # Next.js 14 + Tailwind CSS Dashboard
+│   ├── app/dashboard/page.tsx      # Main studio dashboard view
+│   ├── components/                 # SatelliteStudio, SectionCards, charts
+│   └── package.json
+├── weights/                        # Model weights (RealESRGAN_x4plus.pth)
 ├── samples/                        # Pre-packaged Sentinel-2 test scenes
-└── docs/screenshots/               # Documentation visual assets
+├── assets/                         # Branding & visual assets
+│   ├── logo.png
+│   ├── logo-dark.png
+│   └── screenshots/
+├── docs/                           # Documentation & architecture specifications
+├── scripts/                        # Automation & testing utilities
+│   ├── dev.py                      # Multi-server development runner
+│   ├── run_dev.bat                 # Windows one-click launcher
+│   ├── create_samples.py           # Sample generator
+│   └── test_pipeline.py            # End-to-end integration test suite
+├── .gitignore
+├── requirements.txt                # Python dependencies
+├── Dockerfile                      # Production multi-stage container
+├── README.md
+└── render.yaml                     # Cloud deployment blueprint
 ```
 
 ---
@@ -177,10 +189,10 @@ You can launch both the FastAPI backend and Next.js frontend concurrently with a
 npm run dev
 
 # Option B: Pure Python Unified Runner (Cross-platform)
-python dev.py
+python scripts/dev.py
 
 # Option C: Windows One-Click Batch Launcher
-run_dev.bat
+scripts\run_dev.bat
 ```
 
 - **Frontend Dashboard**: [`http://localhost:3000`](http://localhost:3000)

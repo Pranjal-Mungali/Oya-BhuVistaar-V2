@@ -14,7 +14,7 @@ import subprocess
 import threading
 from pathlib import Path
 
-BASE_DIR = Path(__file__).resolve().parent
+BASE_DIR = Path(__file__).resolve().parent.parent
 FRONTEND_DIR = BASE_DIR / "frontend"
 
 # ANSI color codes
@@ -53,7 +53,7 @@ def main():
 
     # Start backend
     backend_proc = subprocess.Popen(
-        [python_cmd, "server.py"],
+        [python_cmd, "-m", "uvicorn", "app.main:app", "--reload", "--host", "127.0.0.1", "--port", "8000"],
         cwd=str(BASE_DIR),
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,

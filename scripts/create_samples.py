@@ -11,7 +11,7 @@ from rasterio.crs import CRS
 
 
 def generate_samples():
-    samples_dir = os.path.join(os.path.dirname(__file__), "samples")
+    samples_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "samples")
     os.makedirs(samples_dir, exist_ok=True)
 
     h, w = 128, 128

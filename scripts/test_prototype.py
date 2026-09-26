@@ -9,11 +9,18 @@ Verifies:
 """
 
 import os
+import sys
 from PIL import Image
 import cv2
 import numpy as np
+
+# Ensure project root is in sys.path
+REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if REPO_ROOT not in sys.path:
+    sys.path.insert(0, REPO_ROOT)
+
 from fastapi.testclient import TestClient
-from server import app
+from app.main import app
 
 def test_full_prototype():
     print("=== BHUVISTAAR PROTOTYPE ACCEPTANCE TEST ===")
