@@ -8,13 +8,13 @@
   ],
   "scripts": {
     "dev": "concurrently -k -n \"backend,frontend\" -c \"magenta,cyan\" \"npm run dev:backend\" \"npm run dev:frontend\"",
-    "dev:backend": "python server.py",
+    "dev:backend": "uvicorn app.main:app --reload --host 127.0.0.1 --port 8000",
     "dev:frontend": "npm run dev --prefix frontend",
     "build": "cross-env NEXT_OUTPUT_EXPORT=true npm run build --prefix frontend",
     "build:frontend": "cross-env NEXT_OUTPUT_EXPORT=true npm run build --prefix frontend",
-    "start": "python server.py",
-    "test:pipeline": "python test_pipeline.py",
-    "test:prototype": "python test_prototype.py"
+    "start": "uvicorn app.main:app --host 0.0.0.0 --port 8000",
+    "test:pipeline": "python scripts/test_pipeline.py",
+    "test:prototype": "python scripts/test_prototype.py"
   },
   "devDependencies": {
     "concurrently": "^8.2.2",

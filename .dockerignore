@@ -27,6 +27,28 @@ frontend/out/
 # Build artifacts & temporary data
 data/cache/*
 !data/cache/.gitkeep
+data/train/
+data/raw/
+data/processed/
 build/
 dist/
 *.log
+
+# Unused heavy model weights & training artifacts
+models/
+weights/bhuvistaar_sr_2x.pth
+weights/*.bak
+
+# Unused sample outputs
+samples/*_sr_4x.*
+samples/*_sr4x.*
+samples/*downloaded*
+samples/*bengaluru*
+samples/*test_output*
+
+# Tests and documentation
+docs/
+tests/
+test_*.py
+train.py
+create_samples.py

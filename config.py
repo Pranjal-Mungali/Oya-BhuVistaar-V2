@@ -120,7 +120,7 @@ class Settings:
         )
         self.DEVICE: str = os.getenv("DEVICE", "auto").strip().lower()
         self.SCALE_FACTOR: int = _get_int("SCALE_FACTOR", 4)
-        self.DEFAULT_MC_PASSES: int = _get_int("DEFAULT_MC_PASSES", 15)
+        self.DEFAULT_MC_PASSES: int = _get_int("DEFAULT_MC_PASSES", 5)
         self.DEFAULT_COLORMAP: str = os.getenv("DEFAULT_COLORMAP", "turbo").strip().lower()
 
         # --------------------------------------------------------------------

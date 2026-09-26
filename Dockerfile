@@ -25,7 +25,7 @@ FROM python:3.11-slim AS runner
 
 ENV PYTHONUNBUFFERED=1 \
     DEBIAN_FRONTEND=noninteractive \
-    PORT=8000 \
+    PORT=7860 \
     HOST=0.0.0.0 \
     ENVIRONMENT=production \
     DEVICE=cpu
@@ -41,34 +41,39 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Python requirements
+# Install Python requirements (using CPU wheels for faster lightweight builds)
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir --extra-index-url https://download.pytorch.org/whl/cpu -r requirements.txt
+
+# Create non-root user (UID 1000 is required by Hugging Face Spaces)
+RUN useradd -m -u 1000 user && \
+    mkdir -p /app/data/cache/outputs /app/weights && \
+    chown -R user:user /app
 
 # Copy backend source code & assets
-COPY config.py model.py server.py utils.py ./
-COPY backend/ ./backend/
-COPY weights/ ./weights/
-COPY models/ ./models/
-COPY samples/ ./samples/
-COPY preprocessing/ ./preprocessing/
+COPY --chown=user:user config.py ./
+COPY --chown=user:user app/ ./app/
+COPY --chown=user:user training/ ./training/
+COPY --chown=user:user weights/ ./weights/
+COPY --chown=user:user samples/ ./samples/
 
 # Download pretrained RealESRGAN weights if not present in git checkout
-RUN mkdir -p weights && \
-    if [ ! -s weights/RealESRGAN_x4plus.pth ]; then \
+RUN if [ ! -s weights/RealESRGAN_x4plus.pth ]; then \
         echo "Downloading RealESRGAN_x4plus.pth backbone weights..." && \
         curl -L -f -o weights/RealESRGAN_x4plus.pth \
         https://github.com/xinntao/Real-ESRGAN/releases/download/v0.1.0/RealESRGAN_x4plus.pth ; \
-    fi
+    fi && \
+    chown -R user:user /app/weights && \
+    chmod -R 777 /app/data /app/weights
 
 # Copy built frontend static export from Stage 1
-COPY --from=frontend-builder /app/frontend/out ./frontend/out
+COPY --from=frontend-builder --chown=user:user /app/frontend/out ./frontend/out
 
-# Ensure cache directories exist
-RUN mkdir -p data/cache/outputs
+# Switch to non-root user
+USER user
 
+EXPOSE 7860
 EXPOSE 8000
 
-# Render dynamically sets $PORT environment variable.
-# Start fullstack FastAPI server binding to 0.0.0.0:$PORT
-CMD ["sh", "-c", "uvicorn server:app --host 0.0.0.0 --port ${PORT:-8000}"]
+# Hugging Face Spaces uses PORT 7860; Render passes dynamic $PORT
+CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-7860}"]
