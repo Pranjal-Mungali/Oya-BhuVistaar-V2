@@ -95,9 +95,25 @@ export function SatelliteStudio({ onMetricsUpdate, onInferenceComplete, selected
     return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
   };
 
-  const handleRunInference = async () => {
-    if (!uploadedFile && !selectedSample) {
-      setError("Please upload a satellite image first, or click 'Try sample image'.");
+  // Auto-load demo scene if requested via URL query params
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const demoParam = params.get("demo");
+      const tabParam = params.get("tab");
+      if (demoParam === "true" || demoParam === "1") {
+        setSelectedSample("sentinel2_rgb");
+        const targetTab = tabParam || "curtain";
+        setActiveViewTab(targetTab);
+        handleRunInference("sentinel2_rgb", targetTab);
+      }
+    }
+  }, []);
+
+  const handleRunInference = async (overrideSampleId?: string, overrideTab?: string) => {
+    const targetSample = overrideSampleId || selectedSample;
+    if (!uploadedFile && !targetSample) {
+      setError("Please upload a satellite image first, or click 'try sample scene'.");
       return;
     }
 
@@ -108,25 +124,16 @@ export function SatelliteStudio({ onMetricsUpdate, onInferenceComplete, selected
       const formData = new FormData();
       if (uploadedFile) {
         formData.append("file", uploadedFile);
-      } else if (selectedSample) {
-        formData.append("sample_id", selectedSample);
+      } else if (targetSample) {
+        formData.append("sample_id", targetSample);
       }
       formData.append("num_passes", numPasses.toString());
       formData.append("colormap", colormap);
 
-      const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
-      let res;
-      try {
-        res = await fetch(`${apiBase}/api/predict`, {
-          method: "POST",
-          body: formData,
-        });
-      } catch {
-        res = await fetch("/api/predict", {
-          method: "POST",
-          body: formData,
-        });
-      }
+      const res = await fetch("/api/predict", {
+        method: "POST",
+        body: formData,
+      });
 
       if (!res.ok) {
         const errData = await res.json().catch(() => ({}));
@@ -135,7 +142,10 @@ export function SatelliteStudio({ onMetricsUpdate, onInferenceComplete, selected
 
       const data = await res.json();
       setResult(data);
-      const sceneLabel = uploadedFile ? uploadedFile.name : (selectedSample || "Satellite Scene");
+      if (overrideTab) {
+        setActiveViewTab(overrideTab);
+      }
+      const sceneLabel = uploadedFile ? uploadedFile.name : (targetSample === "sentinel2_rgb" ? "Sentinel-2 True Color (RGB)" : targetSample || "Satellite Scene");
       if (onInferenceComplete) {
         onInferenceComplete(data, sceneLabel);
       }
@@ -256,7 +266,7 @@ export function SatelliteStudio({ onMetricsUpdate, onInferenceComplete, selected
 
   const loadSampleScene = () => {
     setUploadedFile(null);
-    setSelectedSample("satellite_sample");
+    setSelectedSample("sentinel2_rgb");
     setError(null);
   };
 
@@ -296,7 +306,17 @@ export function SatelliteStudio({ onMetricsUpdate, onInferenceComplete, selected
               </div>
               <div className="space-y-1.5 max-w-md">
                 <p className="text-sm sm:text-base font-medium text-zinc-100 group-hover:text-white transition-colors">
-                  Drop your satellite image here, or <span className="text-teal-400 underline underline-offset-4 decoration-teal-500/40 group-hover:decoration-teal-400 font-semibold">browse</span>
+                  Drop your satellite image here, <span className="text-teal-400 underline underline-offset-4 decoration-teal-500/40 group-hover:decoration-teal-400 font-semibold">browse</span>, or{" "}
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      loadSampleScene();
+                    }}
+                    className="text-teal-400 hover:text-teal-300 underline underline-offset-4 decoration-teal-500/40 font-semibold cursor-pointer"
+                  >
+                    try sample scene
+                  </button>
                 </p>
                 <p className="text-xs text-zinc-400">
                   Supports GeoTIFF (.tif, .tiff) and optical imagery (.png, .jpg)
@@ -409,7 +429,7 @@ export function SatelliteStudio({ onMetricsUpdate, onInferenceComplete, selected
           {/* Primary Action Button - Prominent */}
           <div className="flex items-center gap-3">
             <button
-              onClick={handleRunInference}
+              onClick={() => handleRunInference()}
               disabled={loading || (!uploadedFile && !selectedSample)}
               className="w-full md:w-auto bg-teal-500 hover:bg-teal-400 active:scale-[0.98] active:bg-teal-600 text-zinc-950 font-bold text-xs sm:text-sm px-7 py-3 rounded-xl flex items-center justify-center gap-2.5 transition-all duration-200 ease-out shadow-[0_2px_14px_rgba(20,184,166,0.28)] hover:shadow-[0_4px_22px_rgba(20,184,166,0.4)] active:shadow-none disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none cursor-pointer tracking-wide"
             >
@@ -428,7 +448,7 @@ export function SatelliteStudio({ onMetricsUpdate, onInferenceComplete, selected
 
             {result && (
               <a
-                href={`${process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000"}${result.download_url}`}
+                href={result.download_url}
                 target="_blank"
                 download
                 className="px-4 py-3 rounded-xl bg-[#18181c] hover:bg-[#202026] active:scale-[0.98] border border-zinc-700/80 text-zinc-200 hover:text-white text-xs font-medium flex items-center gap-2 transition-all duration-150 cursor-pointer shadow-sm"
