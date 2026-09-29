@@ -126,6 +126,7 @@ samples/*_preview.*
 samples/*preview*
 samples/*test_output*
 samples/*downloaded*
+samples/*.tiff
 
 # Explicitly ensure core sample datasets remain tracked
 !samples/sample_sentinel2_rgb_nir.tif
