@@ -1,3 +1,14 @@
+---
+title: BhuVistaar V2 Super Resolution Studio
+emoji: 🛰️
+colorFrom: green
+colorTo: indigo
+sdk: docker
+app_port: 7860
+pinned: false
+license: mit
+---
+
 <div align="center">
 
 <img src="assets/logo.png" alt="BhuVistaar Logo" width="160" />
