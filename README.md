@@ -56,7 +56,40 @@
   - Cosine Annealing learning rate scheduling and data augmentation.
   - Multi-metric validation (PSNR & SSIM tracking) with automatic best-checkpoint saving.
 
-## 🔬 Visual Results
+## 🖥️ Dashboard Preview
+
+![BhuVistaar Dashboard Studio](screenshots/dashboard_full.png)
+
+### Interactive Curtain Wipe (10m Input vs 2.5m Super-Resolved Output)
+![Curtain Wipe 4x Resolution Inspection](screenshots/dashboard_overview.png)
+
+---
+
+## 🔬 Visual Results & Working Demonstration
+
+### 1. 4× Super-Resolution Comparison (10m &rarr; 2.5m GSD)
+BhuVistaar resolves individual building structures, road alignments, and fine agrarian parcel boundaries while preserving multispectral radiometry:
+
+| Original 10m Ground Sample (1× Input) | BhuVistaar 2.5m Super-Resolved (4× Output) |
+| :---: | :---: |
+| ![Original 10m Sample](screenshots/sample_input_1x.png) | ![4x Super-Resolved 2.5m](screenshots/sample_super_res_4x.png) |
+
+### 2. Bayesian Epistemic Uncertainty Heatmap ($\sigma$)
+Quantifies predictive variance across stochastic dropout passes to highlight ambiguous terrain boundaries, cloud edges, and shadow textures:
+
+![Epistemic Uncertainty Heatmap](screenshots/epistemic_uncertainty_map.png)
+
+### 3. Synchronized Dual Viewport (Side-by-Side)
+Provides pixel-level synchronized comparative inspection across full satellite scene extents:
+
+![Side-by-Side Viewport](screenshots/side_by_side_comparison.png)
+
+### 4. False-Color Infrared (CIR: NIR + Red + Green)
+Generates high-contrast vegetation composites for canopy density analysis and water body delineation:
+
+![False Color NIR Composite](screenshots/false_color_nir.png)
+
+---
 
 ## 🏗️ System Architecture
 
@@ -128,6 +161,7 @@ BhuVistaar/
 │   ├── logo.png
 │   ├── logo-dark.png
 │   └── screenshots/
+├── screenshots/                    # Working application & studio screenshots
 ├── docs/                           # Documentation & architecture specifications
 ├── scripts/                        # Automation & testing utilities
 │   ├── dev.py                      # Multi-server development runner
